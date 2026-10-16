@@ -24,6 +24,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b43fd70e-1344-4147-b154-c5bcc340159c"
+      }
+    },
+    "owner": "annachris3",
+    "updates": {
+      "url": "https://u.expo.dev/b43fd70e-1344-4147-b154-c5bcc340159c"
     }
   }
 }
