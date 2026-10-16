@@ -6,40 +6,58 @@ import {
   INITIAL_PLACES,
 } from '../constants/defaultPlaces';
 
-// Normalize legacy flat pins into the city-first model with beers[] and foodDrinks[]
-const normalizeStoredPlaces = (rawList) => {
-  if (!Array.isArray(rawList) || rawList.length === 0) return INITIAL_PLACES;
+const CURRENT_SCHEMA_VERSION = 2;
 
-  // Check if already in city-first format (has beers or foodDrinks array)
+// Future-proof normalizer: preserves all unknown/future fields (ratings, photos, etc.)
+// and guarantees beers[] and foodDrinks[] arrays exist without losing past pins.
+export const normalizeStoredPlaces = (rawList) => {
+  if (!Array.isArray(rawList)) return INITIAL_PLACES;
+  if (rawList.length === 0) return [];
+
   const isNewFormat = rawList.every(
-    (item) => Array.isArray(item.beers) || Array.isArray(item.foodDrinks)
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      (Array.isArray(item.beers) || Array.isArray(item.foodDrinks))
   );
+
   if (isNewFormat) {
-    return rawList.map((item) => ({
-      ...item,
+    return rawList.map((item, idx) => ({
+      ...item, // Preserve any future fields (photos, ratings, tags, etc.)
+      id: item.id || `${Date.now()}-${idx}`,
+      city: (item.city || 'Unknown').trim(),
+      country: (item.country || 'Global').trim(),
+      year: item.year || '2026',
+      month: item.month || 'May',
+      lat: typeof item.lat === 'number' ? item.lat : 48.2082,
+      lng: typeof item.lng === 'number' ? item.lng : 16.3738,
       beers: Array.isArray(item.beers) ? item.beers : [],
       foodDrinks: Array.isArray(item.foodDrinks) ? item.foodDrinks : [],
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }));
   }
 
-  // Migrate legacy flat entries by grouping by city + country
+  // Migrate legacy v1 flat entries by grouping by city + country while preserving metadata
   const grouped = {};
-  rawList.forEach((p) => {
+  rawList.forEach((p, idx) => {
+    if (!p || typeof p !== 'object') return;
     const city = (p.city || 'Unknown').trim();
     const country = (p.country || 'Global').trim();
     const key = `${city.toLowerCase()}_${country.toLowerCase()}`;
 
     if (!grouped[key]) {
       grouped[key] = {
-        id: p.id || Date.now().toString(),
+        ...p,
+        id: p.id || `${Date.now()}-${idx}`,
         city,
         country,
         year: p.year || '2026',
         month: p.month || 'May',
-        lat: p.lat || 48.2082,
-        lng: p.lng || 16.3738,
+        lat: typeof p.lat === 'number' ? p.lat : 48.2082,
+        lng: typeof p.lng === 'number' ? p.lng : 16.3738,
         beers: [],
         foodDrinks: [],
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
     }
 
@@ -90,20 +108,28 @@ export function usePinCheckData() {
         const storedPlaces = await AsyncStorage.getItem(STORAGE_PLACES_KEY);
         if (storedPlaces !== null) {
           const parsed = JSON.parse(storedPlaces);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setVisitedPlaces(normalizeStoredPlaces(parsed));
+          // Support both raw array or versioned envelope { version, places }
+          const placesArray = Array.isArray(parsed)
+            ? parsed
+            : parsed && Array.isArray(parsed.places)
+            ? parsed.places
+            : null;
+
+          if (placesArray && placesArray.length > 0) {
+            setVisitedPlaces(normalizeStoredPlaces(placesArray));
           }
         }
 
         const storedProfile = await AsyncStorage.getItem(STORAGE_PROFILE_KEY);
         if (storedProfile !== null) {
           const profile = JSON.parse(storedProfile);
+          if (profile.profilePhoto) setProfilePhoto(profile.profilePhoto);
           if (profile.displayName) setDisplayName(profile.displayName);
           if (profile.homeLocation) setHomeLocation(profile.homeLocation);
-          if (profile.youtubeUrl) setYoutubeUrl(profile.youtubeUrl);
-          if (profile.instagramUser) setInstagramUser(profile.instagramUser);
-          if (profile.tiktokUser) setTiktokUser(profile.tiktokUser);
-          if (profile.customLinkUrl) setCustomLinkUrl(profile.customLinkUrl);
+          if (profile.youtubeUrl !== undefined) setYoutubeUrl(profile.youtubeUrl);
+          if (profile.instagramUser !== undefined) setInstagramUser(profile.instagramUser);
+          if (profile.tiktokUser !== undefined) setTiktokUser(profile.tiktokUser);
+          if (profile.customLinkUrl !== undefined) setCustomLinkUrl(profile.customLinkUrl);
           if (profile.customLinkLabel) setCustomLinkLabel(profile.customLinkLabel);
         }
       } catch (e) {
@@ -121,7 +147,10 @@ export function usePinCheckData() {
     if (!isStorageLoaded) return;
     const savePlaces = async () => {
       try {
-        await AsyncStorage.setItem(STORAGE_PLACES_KEY, JSON.stringify(visitedPlaces));
+        await AsyncStorage.setItem(
+          STORAGE_PLACES_KEY,
+          JSON.stringify(visitedPlaces)
+        );
       } catch (e) {
         console.log('Error saving places:', e);
       }
@@ -129,12 +158,13 @@ export function usePinCheckData() {
     savePlaces();
   }, [visitedPlaces, isStorageLoaded]);
 
-  // 3. Auto-save profile details (only after initial load has finished)
+  // 3. Auto-save profile details including profilePhoto (only after initial load has finished)
   useEffect(() => {
     if (!isStorageLoaded) return;
     const saveProfile = async () => {
       try {
         const profileData = {
+          profilePhoto,
           displayName,
           homeLocation,
           youtubeUrl,
@@ -142,14 +172,19 @@ export function usePinCheckData() {
           tiktokUser,
           customLinkUrl,
           customLinkLabel,
+          updatedAt: new Date().toISOString(),
         };
-        await AsyncStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(profileData));
+        await AsyncStorage.setItem(
+          STORAGE_PROFILE_KEY,
+          JSON.stringify(profileData)
+        );
       } catch (e) {
         console.log('Error saving profile:', e);
       }
     };
     saveProfile();
   }, [
+    profilePhoto,
     displayName,
     homeLocation,
     youtubeUrl,
@@ -179,5 +214,6 @@ export function usePinCheckData() {
     setCustomLinkLabel,
     visitedPlaces,
     setVisitedPlaces,
+    isStorageLoaded,
   };
 }

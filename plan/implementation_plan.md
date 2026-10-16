@@ -81,6 +81,48 @@ The user profile acts as an aggregate dashboard reflecting the user's travel foo
 
 ---
 
+# PinCheck: Project Master Plan & Next Steps
+
+## Step 1: Permanent Storage Implementation (Top Priority)
+Before filling in your travel history or making major changes, the developer must make sure data is permanently saved:
+
+* **Decide Storage Type:**
+  * **Option A (Local-Only):** Use permanent device storage (`AsyncStorage` or `MMKV`). Best if the app is solely for your personal use on your phone.
+  * **Option B (Cloud / Shared):** Connect a free cloud backend (Supabase or Firebase). Essential if you want your map to sync across devices, be viewable by friends, or stay backed up if you lose your phone.
+* **Connect the Storage Layer:**
+  * Load all saved pins when the app launches.
+  * Save every new pin automatically whenever you tap "Pin Spot".
+* **Future-Proof the Data Structure:** Ensure past pins will not break or vanish when you add new features later (such as ratings, photos, or new categories).
+
+## Step 2: Form Logic & Category Cleanup
+Finalize the dynamic check-in modal logic:
+
+* **Dynamic Placeholders:**
+  * **Beer:** Prompts for beer names (*Augustiner, Guinness, Peroni*).
+  * **Sights:** Prompts for landmarks and viewpoints (*Schönbrunn Palace, Lake Bled, Viewpoint*).
+  * **Food / Cafe:** Prompts for dining spots (*Figlmüller, Cafe Central*).
+  * **City Field:** Standardize helper text (*Vienna, Ljubljana, Krakow*).
+* **Conditional Visibility:**
+  * Keep the "Notes / What did you order?" field hidden for Beer, showing it only for Sights, Food, and Cafes.
+* **Address-Free Navigation:**
+  * Verify that "Open in Google Maps" and "Ride" automatically combine `Name + City + Country` into a search link.
+  * Keep navigation buttons visible only for physical places (Sights, Food, Cafe) and disabled for Beers.
+
+## Step 3: Standalone Testing Build (Direct APK)
+Move out of the development environment so you can test PinCheck like a real daily app on your phone:
+
+* **Configure Expo EAS:** Set up `eas.json` with an internal preview profile.
+* **Generate Direct APK:** Build a standalone `.apk` to install straight to your Android phone without needing Expo Go or a computer.
+* **Data Safety Test:** Test closing, clearing the app from memory, and rebooting the phone to confirm your logged pins stay 100% intact.
+
+## Step 4: Over-The-Air (OTA) Updates Workflow
+Allow continuous improvements without reinstalling the app:
+
+* **Enable Expo Updates:** Configure the project so any daily UI tweaks, new buttons, or design changes can be pushed directly to your phone over the air.
+* **Iterate Safely:** Use the app in your daily life, take notes on what to improve, and let the developer push updates while your logged travels remain completely untouched.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure
@@ -97,28 +139,11 @@ src/
 ├── constants/
 │   └── defaultPlaces.js       # Initial seed places & storage keys
 ├── hooks/
-│   └── usePinCheckData.js     # Custom hook managing AsyncStorage persistence for places & user profile
+│   └── usePinCheckData.js     # Custom hook managing AsyncStorage persistence, backup/restore & schema migration
 ├── styles/
 │   └── styles.js              # Centralized StyleSheet definitions
 └── utils/
-    ├── categories.js          # getCategoryIcon, getCategoryLabel, getCategoryPlaceholder
+    ├── categories.js          # Category counters & helpers
     ├── externalLinks.js       # openSocial, openInGoogleMaps, openUber, openBolt, shareProfile
     └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates helper
 ```
-
-## Module Breakdown
-
-1. **`src/constants/defaultPlaces.js`**
-   - Exports `STORAGE_PLACES_KEY`, `STORAGE_PROFILE_KEY`, and `INITIAL_PLACES`.
-2. **`src/utils/categories.js`**
-   - Exports `getCategoryIcon(category)`, `getCategoryLabel(category)`, and `getCategoryPlaceholder(category)`.
-3. **`src/utils/geocoding.js`**
-   - Exports `fetchCoordinates(query)` for OpenStreetMap Nominatim lookup.
-4. **`src/utils/externalLinks.js`**
-   - Exports `openSocial(url)`, `openInGoogleMaps(place)`, `openUber(place)`, `openBolt(place)`, and `shareProfile({ displayName, visitedPlaces, youtubeUrl, instagramUser, tiktokUser, customLinkUrl, customLinkLabel })`.
-5. **`src/hooks/usePinCheckData.js`**
-   - Encapsulates `visitedPlaces`, profile state (`displayName`, `homeLocation`, `profilePhoto`, social handles), and automatic `AsyncStorage` hydration and persistence.
-6. **`src/components/*`**
-   - Dedicated, self-contained presentational and modal components.
-7. **`App.js`**
-   - Lightweight root container (~120 lines) that coordinates state, map WebView ref, and modals.

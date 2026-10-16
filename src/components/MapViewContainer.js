@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { styles } from '../styles/styles';
 
 export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
+  useEffect(() => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(
+        JSON.stringify({
+          type: 'SET_MARKERS',
+          places: visitedPlaces,
+        })
+      );
+    }
+  }, [visitedPlaces, webViewRef]);
+
   const mapHtml = `
     <!DOCTYPE html>
     <html>

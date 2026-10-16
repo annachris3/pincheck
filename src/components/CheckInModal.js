@@ -96,22 +96,20 @@ export function CheckInModal({
 
             {/* Step 1: Country & City (Main Check-in Anchor) */}
             <Text style={styles.fieldLabel}>1. Destination (Country & City):</Text>
-            <View style={styles.formRow}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                placeholder="Country (e.g. Austria)"
-                placeholderTextColor="#64748b"
-                value={countryName}
-                onChangeText={setCountryName}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="City (e.g. Vienna)"
-                placeholderTextColor="#64748b"
-                value={cityName}
-                onChangeText={setCityName}
-              />
-            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Country (e.g. Austria, Slovenia, Poland)"
+              placeholderTextColor="#64748b"
+              value={countryName}
+              onChangeText={setCountryName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="City (e.g. Vienna, Ljubljana, Krakow)"
+              placeholderTextColor="#64748b"
+              value={cityName}
+              onChangeText={setCityName}
+            />
 
             <View style={styles.formRow}>
               <TextInput
@@ -207,7 +205,7 @@ export function CheckInModal({
                 <View style={styles.inlineAddRow}>
                   <TextInput
                     style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                    placeholder="Beer Name (e.g. Augustiner, Guinness)"
+                    placeholder="Local Beer Name (e.g. Augustiner, Guinness, Peroni)"
                     placeholderTextColor="#64748b"
                     value={beerInput}
                     onChangeText={setBeerInput}
@@ -236,7 +234,7 @@ export function CheckInModal({
             {activeSubTab === 'food' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryTitle}>
-                  🍽️ Add Food & Drink Place (just the place name):
+                  🍽️ Add Food & Drink Place (pinned inside this city):
                 </Text>
                 <View style={styles.inlineAddRow}>
                   <TextInput
@@ -288,7 +286,7 @@ export function CheckInModal({
                   <ActivityIndicator color="#0f172a" size="small" />
                 ) : (
                   <Text style={styles.saveText}>
-                    {editingPinId ? 'Update Check-in' : '📍 Pin City'}
+                    {editingPinId ? 'Update Spot' : 'Pin Spot'}
                   </Text>
                 )}
               </TouchableOpacity>
