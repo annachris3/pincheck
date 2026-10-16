@@ -1,0 +1,53 @@
+export const STORAGE_PLACES_KEY = '@pincheck_visited_places';
+export const STORAGE_PROFILE_KEY = '@pincheck_user_profile';
+
+export const INITIAL_PLACES = [
+  {
+    id: '1',
+    title: 'Grossmünster & Niederdorf',
+    city: 'Zurich',
+    country: 'Switzerland',
+    category: 'beer',
+    year: '2025',
+    month: 'October',
+    notes: 'Quöllfrisch draft by the Limmat river',
+    lat: 47.3703,
+    lng: 8.5445,
+  },
+  {
+    id: '2',
+    title: 'Augustiner Bräustuben',
+    city: 'Munich',
+    country: 'Germany',
+    category: 'beer',
+    year: '2025',
+    month: 'December',
+    notes: 'Augustiner Edelstoff and pork knuckle',
+    lat: 48.1396,
+    lng: 11.5398,
+  },
+  {
+    id: '3',
+    title: 'Café Central',
+    city: 'Vienna',
+    country: 'Austria',
+    category: 'cafe',
+    year: '2026',
+    month: 'March',
+    notes: 'Melange & warm Apfelstrudel',
+    lat: 48.2104,
+    lng: 16.3653,
+  },
+  {
+    id: '4',
+    title: 'Pod Wawelem Kompania',
+    city: 'Krakow',
+    country: 'Poland',
+    category: 'restaurant',
+    year: '2026',
+    month: 'April',
+    notes: 'Traditional pierogi & Żywiec beer',
+    lat: 50.0543,
+    lng: 19.9372,
+  },
+];
