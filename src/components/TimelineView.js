@@ -84,20 +84,38 @@ export function TimelineView({ visitedPlaces, onSelectPlace, onSelectFoodSpot })
                               <Text style={styles.subItemGroupLabel}>
                                 🍽️ Pinned Food & Drink (Tap for Maps / Ride):
                               </Text>
-                              <View style={styles.subChipsWrap}>
+                              <View style={{ gap: 6 }}>
                                 {foodDrinks.map((spot, idx) => {
                                   const spotName =
                                     typeof spot === 'string' ? spot : spot.name;
+                                  const spotAddress =
+                                    typeof spot === 'object' && spot.address
+                                      ? spot.address
+                                      : null;
                                   return (
                                     <TouchableOpacity
                                       key={`fd-${idx}`}
-                                      style={styles.subChipFood}
+                                      style={[
+                                        styles.subChipFood,
+                                        { paddingVertical: 6, paddingHorizontal: 10 },
+                                      ]}
                                       activeOpacity={0.7}
                                       onPress={() => onSelectFoodSpot(item, spotName)}
                                     >
                                       <Text style={styles.subChipText}>
                                         📍🍽️ {spotName}
                                       </Text>
+                                      {spotAddress ? (
+                                        <Text
+                                          style={{
+                                            fontSize: 11,
+                                            color: '#94a3b8',
+                                            marginTop: 2,
+                                          }}
+                                        >
+                                          {spotAddress}
+                                        </Text>
+                                      ) : null}
                                     </TouchableOpacity>
                                   );
                                 })}

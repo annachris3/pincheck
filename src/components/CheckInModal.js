@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { styles } from '../styles/styles';
+import { searchVenueInCity } from '../utils/geocoding';
 
 export function CheckInModal({
   visible,
@@ -34,6 +35,7 @@ export function CheckInModal({
   const [activeSubTab, setActiveSubTab] = useState('visit');
   const [beerInput, setBeerInput] = useState('');
   const [foodDrinkInput, setFoodDrinkInput] = useState('');
+  const [isLookingUpSpot, setIsLookingUpSpot] = useState(false);
 
   const handleAddBeer = () => {
     const trimmed = beerInput.trim();
@@ -46,10 +48,32 @@ export function CheckInModal({
     setBeers(beers.filter((_, i) => i !== index));
   };
 
-  const handleAddFoodDrink = () => {
+  // Automatically looks up the address + exact coordinates from just the place name + city + country!
+  const handleAddFoodDrink = async () => {
     const trimmed = foodDrinkInput.trim();
     if (!trimmed) return;
-    setFoodDrinks([...foodDrinks, trimmed]);
+
+    setIsLookingUpSpot(true);
+    const resolved = await searchVenueInCity(
+      trimmed,
+      cityName.trim(),
+      countryName.trim()
+    );
+    setIsLookingUpSpot(false);
+
+    if (resolved) {
+      setFoodDrinks([...foodDrinks, resolved]);
+    } else {
+      setFoodDrinks([
+        ...foodDrinks,
+        {
+          name: trimmed,
+          address: [cityName.trim(), countryName.trim()].filter(Boolean).join(', '),
+          lat: null,
+          lng: null,
+        },
+      ]);
+    }
     setFoodDrinkInput('');
   };
 
@@ -57,7 +81,7 @@ export function CheckInModal({
     setFoodDrinks(foodDrinks.filter((_, i) => i !== index));
   };
 
-  const handleSaveWithPendingInputs = () => {
+  const handleSaveWithPendingInputs = async () => {
     let finalBeers = beers;
     let finalFoodDrinks = foodDrinks;
 
@@ -67,7 +91,22 @@ export function CheckInModal({
       setBeerInput('');
     }
     if (foodDrinkInput.trim()) {
-      finalFoodDrinks = [...foodDrinks, foodDrinkInput.trim()];
+      const pendingName = foodDrinkInput.trim();
+      setIsLookingUpSpot(true);
+      const resolved = await searchVenueInCity(
+        pendingName,
+        cityName.trim(),
+        countryName.trim()
+      );
+      setIsLookingUpSpot(false);
+
+      const newSpot = resolved || {
+        name: pendingName,
+        address: [cityName.trim(), countryName.trim()].filter(Boolean).join(', '),
+        lat: null,
+        lng: null,
+      };
+      finalFoodDrinks = [...foodDrinks, newSpot];
       setFoodDrinks(finalFoodDrinks);
       setFoodDrinkInput('');
     }
@@ -234,7 +273,7 @@ export function CheckInModal({
             {activeSubTab === 'food' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryTitle}>
-                  🍽️ Add Food & Drink Place (pinned inside this city):
+                  🍽️ Type Place Name (we find the address & pin it automatically!):
                 </Text>
                 <View style={styles.inlineAddRow}>
                   <TextInput
@@ -248,21 +287,51 @@ export function CheckInModal({
                   <TouchableOpacity
                     style={styles.inlineAddBtn}
                     onPress={handleAddFoodDrink}
+                    disabled={isLookingUpSpot}
                   >
-                    <Text style={styles.inlineAddBtnText}>+ Add</Text>
+                    {isLookingUpSpot ? (
+                      <ActivityIndicator color="#0f172a" size="small" />
+                    ) : (
+                      <Text style={styles.inlineAddBtnText}>+ Pin</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
 
                 {foodDrinks.length > 0 && (
-                  <View style={styles.addedItemsList}>
-                    {foodDrinks.map((item, index) => (
-                      <View key={`modal-fd-${index}`} style={styles.addedItemChip}>
-                        <Text style={styles.addedItemChipText}>🍽️ {item}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveFoodDrink(index)}>
-                          <Text style={styles.removeChipX}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
+                  <View style={{ marginTop: 10, gap: 8 }}>
+                    {foodDrinks.map((item, index) => {
+                      const spotName = typeof item === 'string' ? item : item.name;
+                      const spotAddress =
+                        typeof item === 'object' && item.address ? item.address : null;
+
+                      return (
+                        <View
+                          key={`modal-fd-${index}`}
+                          style={[
+                            styles.addedItemChip,
+                            { justifyContent: 'space-between', borderRadius: 10, paddingVertical: 8 },
+                          ]}
+                        >
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.addedItemChipText}>🍽️ {spotName}</Text>
+                            {spotAddress ? (
+                              <Text
+                                style={{
+                                  color: '#94a3b8',
+                                  fontSize: 11,
+                                  marginTop: 2,
+                                }}
+                              >
+                                📍 {spotAddress}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <TouchableOpacity onPress={() => handleRemoveFoodDrink(index)}>
+                            <Text style={styles.removeChipX}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
               </View>
@@ -280,9 +349,9 @@ export function CheckInModal({
               <TouchableOpacity
                 style={[styles.btn, styles.saveBtn]}
                 onPress={handleSaveWithPendingInputs}
-                disabled={isSearchingLocation}
+                disabled={isSearchingLocation || isLookingUpSpot}
               >
-                {isSearchingLocation ? (
+                {isSearchingLocation || isLookingUpSpot ? (
                   <ActivityIndicator color="#0f172a" size="small" />
                 ) : (
                   <Text style={styles.saveText}>

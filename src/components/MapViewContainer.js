@@ -37,11 +37,13 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
             justify-content: center;
             background: #1e293b;
             border: 2px solid #38bdf8;
-            border-radius: 50%;
-            font-size: 16px;
+            border-radius: 20px;
+            padding: 0 6px;
+            font-size: 14px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            width: 34px !important;
-            height: 34px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            white-space: nowrap;
             will-change: transform;
           }
           .custom-food-marker {
@@ -51,10 +53,10 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
             background: #0f172a;
             border: 2px solid #f59e0b;
             border-radius: 50%;
-            font-size: 14px;
+            font-size: 15px;
             box-shadow: 0 3px 8px rgba(0,0,0,0.6);
-            width: 30px !important;
-            height: 30px !important;
+            width: 32px !important;
+            height: 32px !important;
             will-change: transform;
           }
         </style>
@@ -76,12 +78,28 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
           function renderMarkers(places) {
             markersLayer.clearLayers();
             places.forEach(p => {
-              // 1. Main City Pin (📍)
+              const hasBeers = Array.isArray(p.beers) && p.beers.length > 0;
+              const spots = Array.isArray(p.foodDrinks) ? p.foodDrinks : [];
+              const hasFood = spots.length > 0;
+
+              // Build the emoji badge for the city marker so chosen emojis (📍, 🍺, 🍽️) are always visible!
+              let cityEmojis = '📍';
+              if (hasBeers && hasFood) {
+                cityEmojis = '📍🍺🍽️';
+              } else if (hasBeers) {
+                cityEmojis = '📍🍺';
+              } else if (hasFood) {
+                cityEmojis = '📍🍽️';
+              }
+
+              const badgeWidth = cityEmojis.length > 2 ? 54 : 34;
+
+              // 1. Main City Pin showing the chosen category emojis
               const cityIcon = L.divIcon({
-                html: "<div class='custom-emoji-marker'>📍</div>",
+                html: "<div class='custom-emoji-marker'>" + cityEmojis + "</div>",
                 className: '',
-                iconSize: [34, 34],
-                iconAnchor: [17, 17]
+                iconSize: [badgeWidth, 32],
+                iconAnchor: [badgeWidth / 2, 16]
               });
 
               const cityMarker = L.marker([p.lat, p.lng], { icon: cityIcon }).addTo(markersLayer);
@@ -93,20 +111,18 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
                 }));
               });
 
-              // 2. Pinned Food & Drink places inside this City (🍽️)
-              const spots = Array.isArray(p.foodDrinks) ? p.foodDrinks : [];
+              // 2. Exact Pinned 🍽️ Food & Drink places inside this City
               spots.forEach((spot, idx) => {
                 const name = typeof spot === 'string' ? spot : spot.name;
-                // Slight offset if using city coords so both pins are tappable on the map
                 const angle = (idx + 1) * (Math.PI / 3);
-                const lat = (spot && spot.lat) ? spot.lat : (p.lat + 0.008 * Math.cos(angle));
-                const lng = (spot && spot.lng) ? spot.lng : (p.lng + 0.008 * Math.sin(angle));
+                const lat = (spot && typeof spot.lat === 'number') ? spot.lat : (p.lat + 0.008 * Math.cos(angle));
+                const lng = (spot && typeof spot.lng === 'number') ? spot.lng : (p.lng + 0.008 * Math.sin(angle));
 
                 const foodIcon = L.divIcon({
                   html: "<div class='custom-food-marker'>🍽️</div>",
                   className: '',
-                  iconSize: [30, 30],
-                  iconAnchor: [15, 15]
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16]
                 });
 
                 const spotMarker = L.marker([lat, lng], { icon: foodIcon }).addTo(markersLayer);

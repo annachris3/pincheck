@@ -12,22 +12,49 @@ export function ActionSheetModal({
   onEditPlace,
 }) {
   const beers = Array.isArray(selectedPlace?.beers) ? selectedPlace.beers : [];
-  const foodDrinks = Array.isArray(selectedPlace?.foodDrinks)
-    ? selectedPlace.foodDrinks.map((s) => (typeof s === 'string' ? s : s.name))
+  const rawFoodDrinks = Array.isArray(selectedPlace?.foodDrinks)
+    ? selectedPlace.foodDrinks
     : [];
+
+  const normalizedSpots = rawFoodDrinks.map((s) =>
+    typeof s === 'string'
+      ? {
+          name: s,
+          address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
+          lat: selectedPlace?.lat,
+          lng: selectedPlace?.lng,
+        }
+      : {
+          name: s.name,
+          address:
+            s.address ||
+            `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
+          lat: typeof s.lat === 'number' ? s.lat : selectedPlace?.lat,
+          lng: typeof s.lng === 'number' ? s.lng : selectedPlace?.lng,
+        }
+  );
+
+  const focusedSpot = selectedSpotName
+    ? normalizedSpots.find((s) => s.name === selectedSpotName) || {
+        name: selectedSpotName,
+        address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
+        lat: selectedPlace?.lat,
+        lng: selectedPlace?.lng,
+      }
+    : null;
 
   return (
     <Modal visible={visible} animationType="fade" transparent={true}>
       <View style={styles.actionSheetOverlay}>
         <View style={styles.actionSheetContent}>
-          {selectedPlace && selectedSpotName ? (
+          {selectedPlace && focusedSpot ? (
             /* FOCUSED VIEW: A specific Pinned 🍽️ Food & Drink Place inside the City */
             <View>
               <View style={styles.sheetTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sheetTitle}>🍽️ {selectedSpotName}</Text>
+                  <Text style={styles.sheetTitle}>🍽️ {focusedSpot.name}</Text>
                   <Text style={styles.sheetSubtitle}>
-                    📍 Pinned in {selectedPlace.city}, {selectedPlace.country}
+                    📍 {focusedSpot.address}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={onClose}>
@@ -38,21 +65,30 @@ export function ActionSheetModal({
               {/* Primary Action: Google Maps for this Food & Drink place */}
               <TouchableOpacity
                 style={styles.actionButtonGoogleMaps}
-                onPress={() => openInGoogleMaps(selectedPlace, selectedSpotName)}
+                onPress={() => openInGoogleMaps(selectedPlace, focusedSpot.name)}
               >
                 <Text style={styles.actionButtonGoogleMapsText}>
                   🗺️ Open in Google Maps
                 </Text>
               </TouchableOpacity>
 
-              {/* Mobility Row: Uber & Bolt to this Food & Drink place */}
+              {/* Mobility Row: Uber & Bolt to this Food & Drink place's exact coordinates */}
               <View style={styles.rideRow}>
                 <TouchableOpacity
                   style={[
                     styles.rideButton,
                     { backgroundColor: '#000000', borderColor: '#334155' },
                   ]}
-                  onPress={() => openUber(selectedPlace, selectedSpotName)}
+                  onPress={() =>
+                    openUber(
+                      {
+                        ...selectedPlace,
+                        lat: focusedSpot.lat,
+                        lng: focusedSpot.lng,
+                      },
+                      focusedSpot.name
+                    )
+                  }
                 >
                   <Text style={styles.rideButtonText}>🚗 Uber</Text>
                 </TouchableOpacity>
@@ -62,7 +98,13 @@ export function ActionSheetModal({
                     styles.rideButton,
                     { backgroundColor: '#34d399', borderColor: '#059669' },
                   ]}
-                  onPress={() => openBolt(selectedPlace)}
+                  onPress={() =>
+                    openBolt({
+                      ...selectedPlace,
+                      lat: focusedSpot.lat,
+                      lng: focusedSpot.lng,
+                    })
+                  }
                 >
                   <Text style={[styles.rideButtonText, { color: '#064e3b' }]}>
                     ⚡ Bolt
@@ -70,7 +112,7 @@ export function ActionSheetModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Back to full City overview or Edit */}
+              {/* Back to full City overview */}
               <TouchableOpacity
                 style={styles.editPlaceBtn}
                 onPress={() => onSelectSpotName(null)}
@@ -81,7 +123,7 @@ export function ActionSheetModal({
               </TouchableOpacity>
             </View>
           ) : (
-            /* CITY OVERVIEW: Shows Beers (hobby list) + Pinned Food & Drink places */
+            /* CITY OVERVIEW: Shows Beers (hobby list) + Pinned Food & Drink places with addresses */
             selectedPlace && (
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -94,9 +136,9 @@ export function ActionSheetModal({
                     </Text>
                     <Text style={styles.sheetSubtitle}>
                       {selectedPlace.month} {selectedPlace.year}
-                      {beers.length === 0 && foodDrinks.length === 0
+                      {beers.length === 0 && normalizedSpots.length === 0
                         ? ' • Just Visited'
-                        : ` • 🍺 ${beers.length} • 🍽️ ${foodDrinks.length}`}
+                        : ` • 🍺 ${beers.length} • 🍽️ ${normalizedSpots.length}`}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={onClose}>
@@ -120,19 +162,30 @@ export function ActionSheetModal({
                   </View>
                 )}
 
-                {/* Subcategory 2: Pinned Food & Drink Places (Google Maps + Uber + Bolt) */}
-                {foodDrinks.length > 0 && (
+                {/* Subcategory 2: Pinned Food & Drink Places (Address + Google Maps + Uber + Bolt) */}
+                {normalizedSpots.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
                       🍽️ Pinned Food & Drink Places in {selectedPlace.city}
                     </Text>
-                    {foodDrinks.map((spotName, idx) => (
+                    {normalizedSpots.map((spot, idx) => (
                       <View key={`sheet-fd-${idx}`} style={styles.spotActionCard}>
-                        <Text style={styles.spotActionName}>📍🍽️ {spotName}</Text>
+                        <Text style={styles.spotActionName}>📍🍽️ {spot.name}</Text>
+                        {spot.address ? (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: '#94a3b8',
+                              marginBottom: 10,
+                            }}
+                          >
+                            📍 {spot.address}
+                          </Text>
+                        ) : null}
 
                         <TouchableOpacity
                           style={styles.actionButtonGoogleMaps}
-                          onPress={() => openInGoogleMaps(selectedPlace, spotName)}
+                          onPress={() => openInGoogleMaps(selectedPlace, spot.name)}
                         >
                           <Text style={styles.actionButtonGoogleMapsText}>
                             🗺️ Open in Google Maps
@@ -145,7 +198,16 @@ export function ActionSheetModal({
                               styles.rideButton,
                               { backgroundColor: '#000000', borderColor: '#334155' },
                             ]}
-                            onPress={() => openUber(selectedPlace, spotName)}
+                            onPress={() =>
+                              openUber(
+                                {
+                                  ...selectedPlace,
+                                  lat: spot.lat,
+                                  lng: spot.lng,
+                                },
+                                spot.name
+                              )
+                            }
                           >
                             <Text style={styles.rideButtonText}>🚗 Uber</Text>
                           </TouchableOpacity>
@@ -155,7 +217,13 @@ export function ActionSheetModal({
                               styles.rideButton,
                               { backgroundColor: '#34d399', borderColor: '#059669' },
                             ]}
-                            onPress={() => openBolt(selectedPlace)}
+                            onPress={() =>
+                              openBolt({
+                                ...selectedPlace,
+                                lat: spot.lat,
+                                lng: spot.lng,
+                              })
+                            }
                           >
                             <Text
                               style={[styles.rideButtonText, { color: '#064e3b' }]}
