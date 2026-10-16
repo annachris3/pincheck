@@ -1,4 +1,5 @@
 import { Alert, Linking, Share } from 'react-native';
+import { getTotalBeersCount, getTotalFoodDrinksCount } from './categories';
 
 // Safe Social Opener
 export const openSocial = (url) => {
@@ -9,18 +10,24 @@ export const openSocial = (url) => {
   });
 };
 
-// Addressless Google Maps Launcher
-export const openInGoogleMaps = (place) => {
-  const query = encodeURIComponent(`${place.title}, ${place.city}, ${place.country}`);
+// Addressless Google Maps Launcher (works for a City or a specific Food & Drink place inside that City)
+export const openInGoogleMaps = (place, spotName = null) => {
+  const target = spotName
+    ? `${spotName}, ${place.city}, ${place.country}`
+    : `${place.city}, ${place.country}`;
+  const query = encodeURIComponent(target);
   const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
   Linking.openURL(url).catch(() => {
     Alert.alert('Cannot Open Maps', 'Could not launch Google Maps.');
   });
 };
 
-// Open Uber
-export const openUber = (place) => {
-  const nickname = encodeURIComponent(place.title || place.city);
+// Open Uber (for a City or a specific Food & Drink place)
+export const openUber = (place, spotName = null) => {
+  const label = spotName
+    ? `${spotName}, ${place.city}`
+    : `${place.city}, ${place.country}`;
+  const nickname = encodeURIComponent(label);
   const uberAppUrl = `uber://?action=setPickup&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${nickname}`;
   const uberWebUrl = `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${nickname}`;
 
@@ -35,7 +42,7 @@ export const openUber = (place) => {
     .catch(() => Linking.openURL(uberWebUrl));
 };
 
-// Open Bolt
+// Open Bolt (for a City or a specific Food & Drink place)
 export const openBolt = (place) => {
   const boltAppUrl = `bolt://rides?destination_lat=${place.lat}&destination_lng=${place.lng}`;
   const boltWebUrl = 'https://bolt.eu';
@@ -68,13 +75,8 @@ export const shareProfile = async ({
     const citiesCount = new Set(
       visitedPlaces.map((p) => (p.city || '').trim().toLowerCase()).filter(Boolean)
     ).size;
-    const beersCount = visitedPlaces.filter((p) => p.category === 'beer').length;
-    const sightsCount = visitedPlaces.filter(
-      (p) => p.category === 'visit' || !p.category
-    ).length;
-    const foodCount = visitedPlaces.filter(
-      (p) => p.category === 'restaurant' || p.category === 'food' || p.category === 'cafe'
-    ).length;
+    const beersCount = getTotalBeersCount(visitedPlaces);
+    const foodDrinksCount = getTotalFoodDrinksCount(visitedPlaces);
 
     const linksList = [
       youtubeUrl ? `YouTube: ${youtubeUrl}` : null,
@@ -90,9 +92,9 @@ export const shareProfile = async ({
       message:
         `✈️ Travel Log • PinCheck\n\n` +
         `🌍 ${countriesCount} Countries | 🏙️ ${citiesCount} Cities\n` +
-        `📍 ${visitedPlaces.length} Total Check-ins\n` +
-        `🍺 ${beersCount} Local Beers Tasted\n\n` +
-        `📍 ${sightsCount} Sights & Landmarks | 🍽️ ${foodCount} Food Spots` +
+        `📍 ${visitedPlaces.length} City Check-ins\n` +
+        `🍺 ${beersCount} Local Beers Tasted\n` +
+        `🍽️ ${foodDrinksCount} Food & Drink Spots` +
         (linksList ? `\n\nFollow my journey:\n${linksList}` : '') +
         `\n\nNo Plan, Just PinCheck!`,
     });

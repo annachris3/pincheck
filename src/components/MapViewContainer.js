@@ -49,17 +49,10 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
           let markersLayer = L.layerGroup().addTo(map);
 
-          function getIcon(cat) {
-            if (cat === 'restaurant' || cat === 'food') return '🍽️';
-            if (cat === 'cafe') return '☕';
-            if (cat === 'beer') return '🍺';
-            return '📍';
-          }
-
           function renderMarkers(places) {
             markersLayer.clearLayers();
             places.forEach(p => {
-              const iconHtml = "<div class='custom-emoji-marker'>" + getIcon(p.category) + "</div>";
+              const iconHtml = "<div class='custom-emoji-marker'>📍</div>";
               const customIcon = L.divIcon({
                 html: iconHtml,
                 className: '',

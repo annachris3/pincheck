@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/styles';
-import { getCategoryIcon } from '../utils/categories';
 
 export function TimelineView({ visitedPlaces, onSelectPlace }) {
   const groupedByYear = visitedPlaces.reduce((acc, place) => {
@@ -13,7 +12,7 @@ export function TimelineView({ visitedPlaces, onSelectPlace }) {
 
   return (
     <ScrollView style={styles.timelineContainer}>
-      <Text style={styles.timelineHelp}>💡 Tap any spot to view actions, ride, or edit</Text>
+      <Text style={styles.timelineHelp}>💡 Tap any city check-in to view spots, ride, or edit</Text>
       {Object.keys(groupedByYear)
         .sort((a, b) => b - a)
         .map((yearKey) => {
@@ -37,31 +36,65 @@ export function TimelineView({ visitedPlaces, onSelectPlace }) {
                 </Text>
               </View>
 
-              {placesThisYear.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.timelineCard}
-                  activeOpacity={0.7}
-                  onPress={() => onSelectPlace(item)}
-                >
-                  <View style={styles.timelineLeftDot}>
-                    <Text style={{ fontSize: 16 }}>{getCategoryIcon(item.category)}</Text>
-                    <View style={styles.line} />
-                  </View>
-                  <View style={styles.cardContent}>
-                    <View style={styles.cardHeaderRow}>
-                      <Text style={styles.cardTitle}>{item.title}</Text>
-                      <Text style={styles.cardMonth}>{item.month}</Text>
+              {placesThisYear.map((item) => {
+                const beers = Array.isArray(item.beers) ? item.beers : [];
+                const foodDrinks = Array.isArray(item.foodDrinks) ? item.foodDrinks : [];
+                const isJustVisit = beers.length === 0 && foodDrinks.length === 0;
+
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.timelineCard}
+                    activeOpacity={0.7}
+                    onPress={() => onSelectPlace(item)}
+                  >
+                    <View style={styles.timelineLeftDot}>
+                      <Text style={{ fontSize: 16 }}>📍</Text>
+                      <View style={styles.line} />
                     </View>
-                    <Text style={styles.cardLocation}>
-                      📍 {item.city}, {item.country}
-                    </Text>
-                    {item.notes ? (
-                      <Text style={styles.cardNotes}>{`"${item.notes}"`}</Text>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-              ))}
+                    <View style={styles.cardContent}>
+                      <View style={styles.cardHeaderRow}>
+                        <Text style={styles.cardTitle}>
+                          {item.city}, {item.country}
+                        </Text>
+                        <Text style={styles.cardMonth}>{item.month}</Text>
+                      </View>
+
+                      {isJustVisit ? (
+                        <Text style={styles.cardLocation}>📍 Just Visited</Text>
+                      ) : (
+                        <View style={styles.subItemsContainer}>
+                          {beers.length > 0 && (
+                            <View style={styles.subItemGroup}>
+                              <Text style={styles.subItemGroupLabel}>🍺 Local Beers:</Text>
+                              <View style={styles.subChipsWrap}>
+                                {beers.map((beer, idx) => (
+                                  <View key={`beer-${idx}`} style={styles.subChipBeer}>
+                                    <Text style={styles.subChipText}>🍺 {beer}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                          )}
+
+                          {foodDrinks.length > 0 && (
+                            <View style={styles.subItemGroup}>
+                              <Text style={styles.subItemGroupLabel}>🍽️ Food & Drink:</Text>
+                              <View style={styles.subChipsWrap}>
+                                {foodDrinks.map((spot, idx) => (
+                                  <View key={`fd-${idx}`} style={styles.subChipFood}>
+                                    <Text style={styles.subChipText}>🍽️ {spot}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           );
         })}

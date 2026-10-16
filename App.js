@@ -52,15 +52,14 @@ export default function App() {
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
 
-  // Pin Form State
+  // City Check-in Form State (Country + City + complementary Beers & Food/Drink inside the city)
   const [editingPinId, setEditingPinId] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('visit');
-  const [venueTitle, setVenueTitle] = useState('');
   const [cityName, setCityName] = useState('');
   const [countryName, setCountryName] = useState('');
   const [year, setYear] = useState('2026');
   const [month, setMonth] = useState('May');
-  const [experienceNotes, setExperienceNotes] = useState('');
+  const [beers, setBeers] = useState([]);
+  const [foodDrinks, setFoodDrinks] = useState([]);
   const [pendingCoords, setPendingCoords] = useState(null);
 
   // Profile Picture Picker
@@ -98,36 +97,34 @@ export default function App() {
       customLinkLabel,
     });
 
-  // Open Check-in Modal for New Pin
+  // Open Check-in Modal for New City Pin
   const openNewCheckInModal = (coords = null) => {
     setEditingPinId(null);
-    setSelectedCategory('visit');
-    setVenueTitle('');
     setCityName('');
     setCountryName('');
     setYear('2026');
     setMonth('May');
-    setExperienceNotes('');
+    setBeers([]);
+    setFoodDrinks([]);
     setPendingCoords(coords);
     setModalVisible(true);
   };
 
-  // Open Modal to Edit
+  // Open Modal to Edit existing City Check-in (or add more beers / food & drink spots)
   const openEditModal = (place) => {
     setActionSheetVisible(false);
     setEditingPinId(place.id);
-    setSelectedCategory(place.category || 'visit');
-    setVenueTitle(place.title || '');
-    setCityName(place.city);
-    setCountryName(place.country);
-    setYear(place.year);
-    setMonth(place.month);
-    setExperienceNotes(place.notes || '');
+    setCityName(place.city || '');
+    setCountryName(place.country || '');
+    setYear(place.year || '2026');
+    setMonth(place.month || 'May');
+    setBeers(Array.isArray(place.beers) ? place.beers : []);
+    setFoodDrinks(Array.isArray(place.foodDrinks) ? place.foodDrinks : []);
     setPendingCoords({ lat: place.lat, lng: place.lng });
     setModalVisible(true);
   };
 
-  // Delete Pin
+  // Delete City Pin
   const handleDeletePin = () => {
     if (!editingPinId) return;
     const updated = visitedPlaces.filter((p) => p.id !== editingPinId);
@@ -144,35 +141,31 @@ export default function App() {
     setModalVisible(false);
   };
 
-  // Save or Update Pin
-  const handleSavePin = async () => {
-    if (!cityName.trim()) {
-      Alert.alert('Missing Location', 'Please enter at least a city name.');
+  // Save or Update City Check-in
+  const handleSavePin = async (finalBeers = beers, finalFoodDrinks = foodDrinks) => {
+    if (!cityName.trim() || !countryName.trim()) {
+      Alert.alert(
+        'Missing Destination',
+        'Please enter both the Country and City for your check-in.'
+      );
       return;
     }
 
     let coords = pendingCoords;
     if (!coords) {
       setIsSearchingLocation(true);
-      const query = [venueTitle, cityName, countryName].filter(Boolean).join(', ');
+      const query = `${cityName.trim()}, ${countryName.trim()}`;
       coords = await fetchCoordinates(query);
-
-      // Fallback to City + Country if full venue query didn't resolve
-      if (!coords && venueTitle) {
-        coords = await fetchCoordinates(`${cityName}, ${countryName}`);
-      }
       setIsSearchingLocation(false);
 
       if (!coords) {
         Alert.alert(
           'Location Not Found',
-          'Could not find coordinates. Please check the spelling or add the country.'
+          'Could not find coordinates for this city. Please check the spelling.'
         );
         return;
       }
     }
-
-    const savedNotes = selectedCategory === 'beer' ? '' : experienceNotes.trim();
 
     let updatedList;
     if (editingPinId) {
@@ -180,13 +173,12 @@ export default function App() {
         p.id === editingPinId
           ? {
               ...p,
-              title: venueTitle.trim() || cityName.trim(),
               city: cityName.trim(),
-              country: countryName.trim() || 'Global',
-              category: selectedCategory,
+              country: countryName.trim(),
               year: year.trim() || '2026',
-              month: month.trim() || 'General',
-              notes: savedNotes,
+              month: month.trim() || 'May',
+              beers: finalBeers,
+              foodDrinks: finalFoodDrinks,
               lat: coords.lat,
               lng: coords.lng,
             }
@@ -195,13 +187,12 @@ export default function App() {
     } else {
       const newPlace = {
         id: Date.now().toString(),
-        title: venueTitle.trim() || cityName.trim(),
         city: cityName.trim(),
-        country: countryName.trim() || 'Global',
-        category: selectedCategory,
+        country: countryName.trim(),
         year: year.trim() || '2026',
-        month: month.trim() || 'General',
-        notes: savedNotes,
+        month: month.trim() || 'May',
+        beers: finalBeers,
+        foodDrinks: finalFoodDrinks,
         lat: coords.lat,
         lng: coords.lng,
       };
@@ -292,7 +283,7 @@ export default function App() {
         <Text style={styles.fabText}>+ Check-in</Text>
       </TouchableOpacity>
 
-      {/* MODAL: Place Action Sheet (Google Maps / Uber / Bolt) */}
+      {/* MODAL: Place Action Sheet (Beers list + Food & Drink spots with Google Maps / Uber / Bolt) */}
       <ActionSheetModal
         visible={actionSheetVisible}
         selectedPlace={selectedPlace}
@@ -300,14 +291,10 @@ export default function App() {
         onEditPlace={openEditModal}
       />
 
-      {/* MODAL: Check-in Form */}
+      {/* MODAL: City Check-in Form */}
       <CheckInModal
         visible={modalVisible}
         editingPinId={editingPinId}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        venueTitle={venueTitle}
-        setVenueTitle={setVenueTitle}
         cityName={cityName}
         setCityName={setCityName}
         countryName={countryName}
@@ -316,8 +303,10 @@ export default function App() {
         setYear={setYear}
         month={month}
         setMonth={setMonth}
-        experienceNotes={experienceNotes}
-        setExperienceNotes={setExperienceNotes}
+        beers={beers}
+        setBeers={setBeers}
+        foodDrinks={foodDrinks}
+        setFoodDrinks={setFoodDrinks}
         isSearchingLocation={isSearchingLocation}
         onClose={() => setModalVisible(false)}
         onSave={handleSavePin}

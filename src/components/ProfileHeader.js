@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { styles } from '../styles/styles';
 import { openSocial } from '../utils/externalLinks';
+import { getTotalBeersCount, getTotalFoodDrinksCount } from '../utils/categories';
 
 export function ProfileHeader({
   profilePhoto,
@@ -27,12 +28,9 @@ export function ProfileHeader({
     visitedPlaces.map((p) => (p.city || '').trim().toLowerCase()).filter(Boolean)
   ).size;
 
-  // Taste Stats
-  const beerCount = visitedPlaces.filter((p) => p.category === 'beer').length;
-  const restaurantCount = visitedPlaces.filter(
-    (p) => p.category === 'restaurant' || p.category === 'food'
-  ).length;
-  const cafeCount = visitedPlaces.filter((p) => p.category === 'cafe').length;
+  // Subcategory Totals across all city check-ins
+  const beerCount = getTotalBeersCount(visitedPlaces);
+  const foodDrinkCount = getTotalFoodDrinksCount(visitedPlaces);
 
   return (
     <View style={styles.header}>
@@ -129,16 +127,13 @@ export function ProfileHeader({
         <Text style={styles.macroStatText}>🏙️ {uniqueCities} Cities</Text>
       </View>
 
-      {/* Taste Stats Badges */}
+      {/* Subcategory Stats Badges */}
       <View style={styles.tasteChipsRow}>
         <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>🍺 {beerCount} Beers</Text>
+          <Text style={styles.tasteChipText}>🍺 {beerCount} Local Beers</Text>
         </View>
         <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>🍽️ {restaurantCount} Food</Text>
-        </View>
-        <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>☕ {cafeCount} Cafes</Text>
+          <Text style={styles.tasteChipText}>🍽️ {foodDrinkCount} Food & Drink</Text>
         </View>
       </View>
 

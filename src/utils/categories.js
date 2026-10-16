@@ -1,42 +1,21 @@
-export const getCategoryIcon = (category) => {
-  switch (category) {
-    case 'restaurant':
-    case 'food':
-      return '🍽️';
-    case 'cafe':
-      return '☕';
-    case 'beer':
-      return '🍺';
-    case 'visit':
-    default:
-      return '📍';
-  }
-};
+// Helper utilities for City Check-ins and their nested subcategories (🍺 Beer & 🍽️ Food & Drink)
 
-export const getCategoryLabel = (category) => {
-  switch (category) {
-    case 'restaurant':
-    case 'food':
-      return 'Restaurant';
-    case 'cafe':
-      return 'Cafe';
-    case 'beer':
-      return 'Beer & Bar';
-    case 'visit':
-    default:
-      return 'Just Visit';
-  }
-};
+export const getTotalBeersCount = (visitedPlaces) =>
+  visitedPlaces.reduce(
+    (sum, place) => sum + (Array.isArray(place.beers) ? place.beers.length : 0),
+    0
+  );
 
-export const getCategoryPlaceholder = (selectedCategory) => {
-  if (selectedCategory === 'beer') {
-    return 'Local Beer Name (e.g. Augustiner, Guinness, Peroni)';
-  }
-  if (selectedCategory === 'restaurant' || selectedCategory === 'food') {
-    return 'Restaurant Name (e.g. Figlmüller, Trattoria)';
-  }
-  if (selectedCategory === 'cafe') {
-    return 'Cafe Name (e.g. Café Central, Bakery)';
-  }
-  return 'Landmark / Sight (e.g. Schönbrunn Palace, Lake Bled, Viewpoint)';
-};
+export const getTotalFoodDrinksCount = (visitedPlaces) =>
+  visitedPlaces.reduce(
+    (sum, place) =>
+      sum + (Array.isArray(place.foodDrinks) ? place.foodDrinks.length : 0),
+    0
+  );
+
+export const getJustVisitsCount = (visitedPlaces) =>
+  visitedPlaces.filter(
+    (place) =>
+      (!place.beers || place.beers.length === 0) &&
+      (!place.foodDrinks || place.foodDrinks.length === 0)
+  ).length;

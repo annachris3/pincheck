@@ -6,6 +6,64 @@ import {
   INITIAL_PLACES,
 } from '../constants/defaultPlaces';
 
+// Normalize legacy flat pins into the city-first model with beers[] and foodDrinks[]
+const normalizeStoredPlaces = (rawList) => {
+  if (!Array.isArray(rawList) || rawList.length === 0) return INITIAL_PLACES;
+
+  // Check if already in city-first format (has beers or foodDrinks array)
+  const isNewFormat = rawList.every(
+    (item) => Array.isArray(item.beers) || Array.isArray(item.foodDrinks)
+  );
+  if (isNewFormat) {
+    return rawList.map((item) => ({
+      ...item,
+      beers: Array.isArray(item.beers) ? item.beers : [],
+      foodDrinks: Array.isArray(item.foodDrinks) ? item.foodDrinks : [],
+    }));
+  }
+
+  // Migrate legacy flat entries by grouping by city + country
+  const grouped = {};
+  rawList.forEach((p) => {
+    const city = (p.city || 'Unknown').trim();
+    const country = (p.country || 'Global').trim();
+    const key = `${city.toLowerCase()}_${country.toLowerCase()}`;
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        id: p.id || Date.now().toString(),
+        city,
+        country,
+        year: p.year || '2026',
+        month: p.month || 'May',
+        lat: p.lat || 48.2082,
+        lng: p.lng || 16.3738,
+        beers: [],
+        foodDrinks: [],
+      };
+    }
+
+    const itemName = (p.title || '').trim();
+    if (itemName && itemName.toLowerCase() !== city.toLowerCase()) {
+      if (p.category === 'beer') {
+        if (!grouped[key].beers.includes(itemName)) {
+          grouped[key].beers.push(itemName);
+        }
+      } else if (
+        p.category === 'restaurant' ||
+        p.category === 'food' ||
+        p.category === 'cafe'
+      ) {
+        if (!grouped[key].foodDrinks.includes(itemName)) {
+          grouped[key].foodDrinks.push(itemName);
+        }
+      }
+    }
+  });
+
+  return Object.values(grouped);
+};
+
 export function usePinCheckData() {
   // Profile State
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -21,7 +79,7 @@ export function usePinCheckData() {
   const [customLinkUrl, setCustomLinkUrl] = useState('');
   const [customLinkLabel, setCustomLinkLabel] = useState('My Link');
 
-  // Visited entries with categories
+  // Visited city check-ins with nested beers[] and foodDrinks[]
   const [visitedPlaces, setVisitedPlaces] = useState(INITIAL_PLACES);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
@@ -33,7 +91,7 @@ export function usePinCheckData() {
         if (storedPlaces !== null) {
           const parsed = JSON.parse(storedPlaces);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setVisitedPlaces(parsed);
+            setVisitedPlaces(normalizeStoredPlaces(parsed));
           }
         }
 
