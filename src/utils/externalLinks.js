@@ -88,9 +88,10 @@ export const shareProfile = async ({
     await Share.share({
       title: `${displayName} • PinCheck`,
       message:
-        `Check out my travel map on PinCheck! ✈️\n` +
-        `🌍 ${countriesCount} Countries • 🏙️ ${citiesCount} Cities\n` +
-        `🍺 ${beersCount} Local Beers Tasted\n` +
+        `✈️ Travel Log • PinCheck\n\n` +
+        `🌍 ${countriesCount} Countries | 🏙️ ${citiesCount} Cities\n` +
+        `📍 ${visitedPlaces.length} Total Check-ins\n` +
+        `🍺 ${beersCount} Local Beers Tasted\n\n` +
         `📍 ${sightsCount} Sights & Landmarks | 🍽️ ${foodCount} Food Spots` +
         (linksList ? `\n\nFollow my journey:\n${linksList}` : '') +
         `\n\nNo Plan, Just PinCheck!`,
