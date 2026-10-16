@@ -9,7 +9,10 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 
-import { usePinCheckData } from './src/hooks/usePinCheckData';
+import {
+   usePinCheckData,
+  normalizeStoredPlaces,
+} from './src/hooks/usePinCheckData';
 import { fetchCoordinates } from './src/utils/geocoding';
 import { shareProfile } from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
@@ -340,6 +343,11 @@ export default function App() {
         setInstagramUser={setInstagramUser}
         tiktokUser={tiktokUser}
         setTiktokUser={setTiktokUser}
+        visitedPlaces={visitedPlaces}
+        onImportPlaces={(imported) => {
+          const normalized = normalizeStoredPlaces(imported);
+          setVisitedPlaces(normalized);
+        }}
         onClose={() => setProfileModalVisible(false)}
       />
 
