@@ -33,6 +33,19 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
             height: 34px !important;
             will-change: transform;
           }
+          .custom-food-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a;
+            border: 2px solid #f59e0b;
+            border-radius: 50%;
+            font-size: 14px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+            width: 30px !important;
+            height: 30px !important;
+            will-change: transform;
+          }
         </style>
       </head>
       <body>
@@ -52,20 +65,47 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
           function renderMarkers(places) {
             markersLayer.clearLayers();
             places.forEach(p => {
-              const iconHtml = "<div class='custom-emoji-marker'>📍</div>";
-              const customIcon = L.divIcon({
-                html: iconHtml,
+              // 1. Main City Pin (📍)
+              const cityIcon = L.divIcon({
+                html: "<div class='custom-emoji-marker'>📍</div>",
                 className: '',
                 iconSize: [34, 34],
                 iconAnchor: [17, 17]
               });
 
-              const m = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(markersLayer);
-              m.on('click', function() {
+              const cityMarker = L.marker([p.lat, p.lng], { icon: cityIcon }).addTo(markersLayer);
+              cityMarker.on('click', function() {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'MARKER_CLICK',
-                  placeId: p.id
+                  placeId: p.id,
+                  spotName: null
                 }));
+              });
+
+              // 2. Pinned Food & Drink places inside this City (🍽️)
+              const spots = Array.isArray(p.foodDrinks) ? p.foodDrinks : [];
+              spots.forEach((spot, idx) => {
+                const name = typeof spot === 'string' ? spot : spot.name;
+                // Slight offset if using city coords so both pins are tappable on the map
+                const angle = (idx + 1) * (Math.PI / 3);
+                const lat = (spot && spot.lat) ? spot.lat : (p.lat + 0.008 * Math.cos(angle));
+                const lng = (spot && spot.lng) ? spot.lng : (p.lng + 0.008 * Math.sin(angle));
+
+                const foodIcon = L.divIcon({
+                  html: "<div class='custom-food-marker'>🍽️</div>",
+                  className: '',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                });
+
+                const spotMarker = L.marker([lat, lng], { icon: foodIcon }).addTo(markersLayer);
+                spotMarker.on('click', function() {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'MARKER_CLICK',
+                    placeId: p.id,
+                    spotName: name
+                  }));
+                });
               });
             });
           }

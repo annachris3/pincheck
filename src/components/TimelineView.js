@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/styles';
 
-export function TimelineView({ visitedPlaces, onSelectPlace }) {
+export function TimelineView({ visitedPlaces, onSelectPlace, onSelectFoodSpot }) {
   const groupedByYear = visitedPlaces.reduce((acc, place) => {
     const y = place.year || 'Other';
     if (!acc[y]) acc[y] = [];
@@ -12,7 +12,9 @@ export function TimelineView({ visitedPlaces, onSelectPlace }) {
 
   return (
     <ScrollView style={styles.timelineContainer}>
-      <Text style={styles.timelineHelp}>💡 Tap any city check-in to view spots, ride, or edit</Text>
+      <Text style={styles.timelineHelp}>
+        💡 Tap a city or any 🍽️ Food & Drink pin for Google Maps & Rides
+      </Text>
       {Object.keys(groupedByYear)
         .sort((a, b) => b - a)
         .map((yearKey) => {
@@ -45,7 +47,7 @@ export function TimelineView({ visitedPlaces, onSelectPlace }) {
                   <TouchableOpacity
                     key={item.id}
                     style={styles.timelineCard}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                     onPress={() => onSelectPlace(item)}
                   >
                     <View style={styles.timelineLeftDot}>
@@ -79,13 +81,26 @@ export function TimelineView({ visitedPlaces, onSelectPlace }) {
 
                           {foodDrinks.length > 0 && (
                             <View style={styles.subItemGroup}>
-                              <Text style={styles.subItemGroupLabel}>🍽️ Food & Drink:</Text>
+                              <Text style={styles.subItemGroupLabel}>
+                                🍽️ Pinned Food & Drink (Tap for Maps / Ride):
+                              </Text>
                               <View style={styles.subChipsWrap}>
-                                {foodDrinks.map((spot, idx) => (
-                                  <View key={`fd-${idx}`} style={styles.subChipFood}>
-                                    <Text style={styles.subChipText}>🍽️ {spot}</Text>
-                                  </View>
-                                ))}
+                                {foodDrinks.map((spot, idx) => {
+                                  const spotName =
+                                    typeof spot === 'string' ? spot : spot.name;
+                                  return (
+                                    <TouchableOpacity
+                                      key={`fd-${idx}`}
+                                      style={styles.subChipFood}
+                                      activeOpacity={0.7}
+                                      onPress={() => onSelectFoodSpot(item, spotName)}
+                                    >
+                                      <Text style={styles.subChipText}>
+                                        📍🍽️ {spotName}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
                               </View>
                             </View>
                           )}

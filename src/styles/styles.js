@@ -411,6 +411,23 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
   },
+  rideRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  rideButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  rideButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
   editPlaceBtn: {
     paddingVertical: 10,
     alignItems: 'center',

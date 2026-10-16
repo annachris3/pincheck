@@ -50,6 +50,7 @@ export default function App() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedSpotName, setSelectedSpotName] = useState(null);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
 
   // City Check-in Form State (Country + City + complementary Beers & Food/Drink inside the city)
@@ -113,6 +114,7 @@ export default function App() {
   // Open Modal to Edit existing City Check-in (or add more beers / food & drink spots)
   const openEditModal = (place) => {
     setActionSheetVisible(false);
+    setSelectedSpotName(null);
     setEditingPinId(place.id);
     setCityName(place.city || '');
     setCountryName(place.country || '');
@@ -224,6 +226,7 @@ export default function App() {
         const place = visitedPlaces.find((p) => p.id === data.placeId);
         if (place) {
           setSelectedPlace(place);
+          setSelectedSpotName(data.spotName || null);
           setActionSheetVisible(true);
         }
       }
@@ -262,6 +265,12 @@ export default function App() {
           visitedPlaces={visitedPlaces}
           onSelectPlace={(item) => {
             setSelectedPlace(item);
+            setSelectedSpotName(null);
+            setActionSheetVisible(true);
+          }}
+          onSelectFoodSpot={(item, spotName) => {
+            setSelectedPlace(item);
+            setSelectedSpotName(spotName);
             setActionSheetVisible(true);
           }}
         />
@@ -287,7 +296,12 @@ export default function App() {
       <ActionSheetModal
         visible={actionSheetVisible}
         selectedPlace={selectedPlace}
-        onClose={() => setActionSheetVisible(false)}
+        selectedSpotName={selectedSpotName}
+        onSelectSpotName={setSelectedSpotName}
+        onClose={() => {
+          setActionSheetVisible(false);
+          setSelectedSpotName(null);
+        }}
         onEditPlace={openEditModal}
       />
 
