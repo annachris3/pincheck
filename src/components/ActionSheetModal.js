@@ -1,7 +1,12 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { styles } from '../styles/styles';
-import { openInGoogleMaps, openUber, openBolt } from '../utils/externalLinks';
+import {
+  openInGoogleMaps,
+  openUber,
+  openBolt,
+  openStay22,
+} from '../utils/externalLinks';
 import { getPlaceCitiesList } from '../utils/categories';
 
 export function ActionSheetModal({
@@ -70,23 +75,43 @@ export function ActionSheetModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Primary Action: Google Maps for this Food & Drink place */}
-              <TouchableOpacity
-                style={styles.actionButtonGoogleMaps}
-                onPress={() =>
-                  openInGoogleMaps(
-                    {
-                      ...selectedPlace,
-                      city: focusedSpot.city || selectedPlace.city,
-                    },
-                    focusedSpot.name
-                  )
-                }
-              >
-                <Text style={styles.actionButtonGoogleMapsText}>
-                  🗺️ Open in Google Maps
-                </Text>
-              </TouchableOpacity>
+              {/* Primary Action Row: Google Maps + Stay22 Find Stays */}
+              <View style={styles.rideRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.actionButtonGoogleMaps,
+                    { flex: 1, marginBottom: 0 },
+                  ]}
+                  onPress={() =>
+                    openInGoogleMaps(
+                      {
+                        ...selectedPlace,
+                        city: focusedSpot.city || selectedPlace.city,
+                      },
+                      focusedSpot.name
+                    )
+                  }
+                >
+                  <Text style={styles.actionButtonGoogleMapsText}>
+                    🗺️ Google Maps
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.stay22Button, { flex: 1 }]}
+                  onPress={() =>
+                    openStay22(
+                      {
+                        ...selectedPlace,
+                        city: focusedSpot.city || selectedPlace.city,
+                      },
+                      focusedSpot.name
+                    )
+                  }
+                >
+                  <Text style={styles.stay22ButtonText}>🏨 Find Stays</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Mobility Row: Uber & Bolt to this Food & Drink place's exact coordinates */}
               <View style={styles.rideRow}>
@@ -180,32 +205,63 @@ export function ActionSheetModal({
                   </View>
                 </View>
 
-                {/* Visited Cities in this Country */}
+                {/* Visited Cities in this Country (Maps + Find Stays for each City) */}
                 {citiesList.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
                       🏙️ Cities Visited in {selectedPlace.country}
                     </Text>
-                    <View style={styles.subChipsWrap}>
+                    <View style={{ gap: 8 }}>
                       {citiesList.map((c, idx) => (
-                        <TouchableOpacity
+                        <View
                           key={`sheet-city-${idx}`}
-                          style={styles.addedItemChip}
-                          onPress={() =>
-                            openInGoogleMaps({
-                              city: c.name,
-                              country: selectedPlace.country,
-                            })
-                          }
+                          style={styles.spotActionCard}
                         >
-                          <Text style={styles.subChipText}>📍 {c.name}</Text>
-                        </TouchableOpacity>
+                          <Text style={styles.spotActionName}>
+                            📍 {c.name}, {selectedPlace.country}
+                          </Text>
+                          <View style={[styles.rideRow, { marginBottom: 0 }]}>
+                            <TouchableOpacity
+                              style={[
+                                styles.actionButtonGoogleMaps,
+                                { flex: 1, marginBottom: 0, paddingVertical: 9 },
+                              ]}
+                              onPress={() =>
+                                openInGoogleMaps({
+                                  city: c.name,
+                                  country: selectedPlace.country,
+                                })
+                              }
+                            >
+                              <Text style={styles.actionButtonGoogleMapsText}>
+                                🗺️ Maps
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[
+                                styles.stay22Button,
+                                { flex: 1, paddingVertical: 9 },
+                              ]}
+                              onPress={() =>
+                                openStay22({
+                                  city: c.name,
+                                  country: selectedPlace.country,
+                                })
+                              }
+                            >
+                              <Text style={styles.stay22ButtonText}>
+                                🏨 Find Stays
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
                       ))}
                     </View>
                   </View>
                 )}
 
-                {/* Subcategory 1: Local Beers Tasted in Country (e.g. "🍺 Stiegl tasted in Austria") */}
+                {/* Subcategory 1: Local Beers Tasted in Country (NO Find Stays / Maps — beers are hobby entries) */}
                 {beers.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
@@ -223,7 +279,7 @@ export function ActionSheetModal({
                   </View>
                 )}
 
-                {/* Subcategory 2: Pinned Food & Drink Places (Address + Google Maps + Uber + Bolt) */}
+                {/* Subcategory 2: Pinned Food & Drink Places (Google Maps + Find Stays + Uber + Bolt) */}
                 {normalizedSpots.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
@@ -244,22 +300,44 @@ export function ActionSheetModal({
                           </Text>
                         ) : null}
 
-                        <TouchableOpacity
-                          style={styles.actionButtonGoogleMaps}
-                          onPress={() =>
-                            openInGoogleMaps(
-                              {
-                                ...selectedPlace,
-                                city: spot.city || selectedPlace.city,
-                              },
-                              spot.name
-                            )
-                          }
-                        >
-                          <Text style={styles.actionButtonGoogleMapsText}>
-                            🗺️ Open in Google Maps
-                          </Text>
-                        </TouchableOpacity>
+                        <View style={styles.rideRow}>
+                          <TouchableOpacity
+                            style={[
+                              styles.actionButtonGoogleMaps,
+                              { flex: 1, marginBottom: 0 },
+                            ]}
+                            onPress={() =>
+                              openInGoogleMaps(
+                                {
+                                  ...selectedPlace,
+                                  city: spot.city || selectedPlace.city,
+                                },
+                                spot.name
+                              )
+                            }
+                          >
+                            <Text style={styles.actionButtonGoogleMapsText}>
+                              🗺️ Google Maps
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.stay22Button, { flex: 1 }]}
+                            onPress={() =>
+                              openStay22(
+                                {
+                                  ...selectedPlace,
+                                  city: spot.city || selectedPlace.city,
+                                },
+                                spot.name
+                              )
+                            }
+                          >
+                            <Text style={styles.stay22ButtonText}>
+                              🏨 Find Stays
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
 
                         <View style={[styles.rideRow, { marginBottom: 0 }]}>
                           <TouchableOpacity

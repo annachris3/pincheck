@@ -15,7 +15,7 @@ import {
 } from './src/hooks/usePinCheckData';
 import { fetchCoordinates } from './src/utils/geocoding';
 import { getPlaceCitiesList } from './src/utils/categories';
-import { shareProfile } from './src/utils/externalLinks';
+import { shareProfile, openStay22 } from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
 
 import { ProfileHeader } from './src/components/ProfileHeader';
@@ -333,6 +333,7 @@ export default function App() {
             setActionSheetVisible(true);
           }}
           onEditPlace={openEditModal}
+          onFindStays={openStay22}
         />
       )}
 

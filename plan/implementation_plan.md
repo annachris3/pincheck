@@ -17,7 +17,7 @@ Most travel apps force users to enter full street addresses, phone numbers, or r
 ## 2. Main Goals
 
 1. **Effortless Logging:** Capture a travel memory in under 10 seconds: pick a category, type a name, choose the city/country, and log.
-2. **Instant Utility (Actionable Pins):** Provide one-tap navigation (Google Maps search) and rides (Bolt) for real-world places without requiring address database lookups.
+2. **Instant Utility (Actionable Pins):** Provide one-tap navigation (Google Maps search), rides (Uber / Bolt), and accommodation search (Stay22) for real-world places without requiring manual address entry.
 3. **Showcase Travel Milestones:** Generate shareable summaries that showcase the traveler's reach: total countries, cities, and local beers tasted.
 
 ---
@@ -26,11 +26,11 @@ Most travel apps force users to enter full street addresses, phone numbers, or r
 
 Every pin is stored with a common geographic backbone, while the top input and details adapt dynamically depending on the selected category:
 
-| Category | Primary Field (Top Input) | Geographic & Date Fields | Additional Fields | External Navigation |
+| Category | Primary Field (Top Input) | Geographic & Date Fields | Additional Fields | External Navigation & Monetization |
 | --- | --- | --- | --- | --- |
-| **📍 Sights & Landmarks** (`'visit'`) | **Landmark / Spot Name** (e.g., *Schönbrunn Palace, Lake Bled, Viewpoint*) | City, Country, Month, Year | Optional personal memory note | **Active:** One-tap Google Maps & Bolt ride |
-| **🍽️ Food & ☕ Cafe** (`'food'`, `'restaurant'`, `'cafe'`) | **Venue Name** (e.g., *Figlmüller, Cafe Central*) | City, Country, Month, Year | *"What did you order or enjoy most?"* note | **Active:** One-tap Google Maps & Bolt ride |
-| **🍺 Local Beer** (`'beer'`) | **Beer Name** (e.g., *Augustiner, Guinness, Peroni*) | City, Country, Month, Year | *None* (streamlined log) | **Hidden:** Beer is a logged item, not a physical location |
+| **📍 Sights & Landmarks** (`'visit'`) | **Landmark / Spot Name** (e.g., *Schönbrunn Palace, Lake Bled, Viewpoint*) | City, Country, Month, Year | Optional personal memory note | **Active:** One-tap Google Maps, Bolt/Uber ride, & **🏨 Find Stays** |
+| **🍽️ Food & ☕ Cafe** (`'food'`, `'restaurant'`, `'cafe'`) | **Venue Name** (e.g., *Figlmüller, Cafe Central*) | City, Country, Month, Year | Auto-resolved street address | **Active:** One-tap Google Maps, Bolt/Uber ride, & **🏨 Find Stays** |
+| **🍺 Local Beer** (`'beer'`) | **Beer Name** (e.g., *Augustiner, Guinness, Peroni*) | Country, Month, Year | *None* (streamlined log: `"Beer tasted in Country"`) | **Hidden:** Beer is a logged item, not a physical location |
 
 ### How Addressless Navigation Works
 
@@ -74,10 +74,9 @@ The user profile acts as an aggregate dashboard reflecting the user's travel foo
 
 * **Framework:** React Native / Expo.
 * **Key State Management:**
-  * `visitedPlaces`: Array storing all logged spot objects.
-  * `selectedCategory`: Controls category switching (`'visit'`, `'beer'`, `'food'`, `'restaurant'`, `'cafe'`) and dynamic form rendering.
-  * Form inputs: `venueTitle`, `cityName`, `countryName`, `year`, `month`, and `notes`.
-* **External Actions:** Built-in deep linking using React Native's `Linking` API for Google Maps search queries and Bolt dispatch.
+  * `visitedPlaces`: Array storing all logged country/city check-in objects.
+  * `cities`, `beers`, `foodDrinks`: Multi-city support per country, country-scoped beers (`"<Beer> tasted in <Country>"`), and auto-geocoded Food & Drink spots.
+* **External Actions:** Built-in deep linking using React Native's `Linking` API for Google Maps search queries, Uber/Bolt dispatch, and `expo-web-browser` for Stay22 in-app accommodation search.
 
 ---
 
@@ -123,6 +122,34 @@ Allow continuous improvements without reinstalling the app:
 
 ---
 
+# Task: Add Stay22 "Find Stays" Action Button
+
+## 1. Overview
+Integrate an affiliate accommodation search button on spot cards to monetize physical check-ins. The button sits alongside the existing action buttons (**"🗺️ Open in Google Maps"** and **"🚗 Ride"**).
+
+## 2. Configuration
+* **Partner Engine:** Stay22 Interactive Embed
+* **Affiliate ID (`aid`):** `noplancheckin`
+
+## 3. Display Rules & Placement
+* **Position:** Place the new button labeled **"🏨 Find Stays"** in the action button row, right beside the Google Maps and Ride buttons.
+* **Show when:** The pin belongs to a physical venue category (e.g., Sights / Visits, Food & Drink / Cafes) and has city/country data.
+* **Hide when:** The pin category is set to **"Beer"** (beers do not require accommodation search).
+
+## 4. Dynamic URL Logic
+* When tapped, generate a dynamic URL passing the pin’s location:
+```text
+https://www.stay22.com/embed/gm?aid=noplancheckin&address={CITY_OR_COUNTRY}
+```
+* Combine the pin’s `city` and `country` (e.g., `"Vienna, Austria"`), ensuring the full string is properly URI-encoded.
+* If only one field is present (e.g., just city or just landmark), fall back to whatever geographic location data is available.
+
+## 5. In-App User Experience
+* Launch the link using an in-app browser sheet (`expo-web-browser` via `WebBrowser.openBrowserAsync`).
+* This keeps the user inside PinCheck: they can browse interactive hotel/Airbnb options, and tapping "Done" closes the sheet directly back to their pin details.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure
@@ -132,10 +159,10 @@ src/
 ├── components/
 │   ├── ProfileHeader.js       # Avatar, profile details, social links, Share trigger, macro/taste stats, tabs
 │   ├── MapViewContainer.js    # Leaflet WebView + map HTML template
-│   ├── TimelineView.js        # Chronological timeline grouped by year with country/city badges
-│   ├── ActionSheetModal.js    # Venue details, selective Google Maps / Uber / Bolt buttons, Edit trigger
-│   ├── CheckInModal.js        # Dynamic Check-in form with category-aware placeholders & conditional notes
-│   └── EditProfileModal.js    # Profile & social links configuration modal
+│   ├── TimelineView.js        # Chronological timeline grouped by year with country/city badges & Find Stays
+│   ├── ActionSheetModal.js    # Venue details, Google Maps / Find Stays (Stay22) / Uber / Bolt buttons, Edit trigger
+│   ├── CheckInModal.js        # Dynamic Check-in form with multi-city, country beers, & auto-geocoded food spots
+│   └── EditProfileModal.js    # Profile, social links, & JSON Backup/Restore modal
 ├── constants/
 │   └── defaultPlaces.js       # Initial seed places & storage keys
 ├── hooks/
@@ -143,7 +170,7 @@ src/
 ├── styles/
 │   └── styles.js              # Centralized StyleSheet definitions
 └── utils/
-    ├── categories.js          # Category counters & helpers
-    ├── externalLinks.js       # openSocial, openInGoogleMaps, openUber, openBolt, shareProfile
-    └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates helper
+    ├── categories.js          # Category counters & multi-city helpers
+    ├── externalLinks.js       # openSocial, openInGoogleMaps, openStay22, openUber, openBolt, shareProfile
+    └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates & searchVenueInCity helpers
 ```

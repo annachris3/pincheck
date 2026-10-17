@@ -445,6 +445,29 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
   },
+  stay22Button: {
+    backgroundColor: '#f59e0b',
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stay22ButtonText: {
+    color: '#0f172a',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  inlineStayPill: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  inlineStayPillText: {
+    color: '#0f172a',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   rideRow: {
     flexDirection: 'row',
     gap: 10,
