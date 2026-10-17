@@ -15,32 +15,21 @@ import {
 } from './src/hooks/usePinCheckData';
 import { fetchCoordinates } from './src/utils/geocoding';
 import { getPlaceCitiesList } from './src/utils/categories';
-import {
-  shareProfile,
-  openStay22,
-  decodeSharedProfileFromUrl,
-} from './src/utils/externalLinks';
+import { shareProfile, openStay22 } from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
 
 import { ProfileHeader } from './src/components/ProfileHeader';
 import { MapViewContainer } from './src/components/MapViewContainer';
 import { TimelineView } from './src/components/TimelineView';
-import { PublicProfileView } from './src/components/PublicProfileView';
 import { ActionSheetModal } from './src/components/ActionSheetModal';
 import { CheckInModal } from './src/components/CheckInModal';
 import { EditProfileModal } from './src/components/EditProfileModal';
 
 export default function App() {
   const webViewRef = useRef(null);
-  const sharedUrlState = decodeSharedProfileFromUrl();
-  const isReadOnlyWebViewer = Boolean(sharedUrlState?.isPublicViewer);
-  const sharedProfileData = sharedUrlState?.sharedData || null;
+  const [activeTab, setActiveTab] = useState('map'); // 'map' (main page) or 'timeline'
 
-  const [activeTab, setActiveTab] = useState(
-    isReadOnlyWebViewer ? 'public' : 'map'
-  ); // 'map', 'timeline', or 'public'
-
-  // Persistent Data Hook
+  // Persistent Data Hook (with cloud sync & read-only web viewer isolation)
   const {
     profilePhoto,
     setProfilePhoto,
@@ -58,6 +47,8 @@ export default function App() {
     customLinkLabel,
     visitedPlaces,
     setVisitedPlaces,
+    isReadOnlyViewer,
+    startNewUserMap,
   } = usePinCheckData();
 
   // Modal states
@@ -78,8 +69,9 @@ export default function App() {
   const [foodDrinks, setFoodDrinks] = useState([]);
   const [pendingCoords, setPendingCoords] = useState(null);
 
-  // Profile Picture Picker (stores base64 data URI so the photo never expires from cache)
+  // Profile Picture Picker (stores base64 data URI so the photo never expires and syncs to invite page)
   const handlePickImage = async () => {
+    if (isReadOnlyViewer) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
@@ -93,7 +85,7 @@ export default function App() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.4,
       base64: true,
     });
 
@@ -110,13 +102,35 @@ export default function App() {
   // Share Profile Wrapper
   const handleShareProfile = () =>
     shareProfile({
+      profilePhoto,
       displayName,
       homeLocation,
+      youtubeUrl,
+      instagramUser,
+      tiktokUser,
+      customLinkUrl,
+      customLinkLabel,
       visitedPlaces,
     });
 
+  // Start a brand-new blank PinCheck map for an external visitor (never edits the owner's map!)
+  const handleCreateOwnMap = async () => {
+    await startNewUserMap();
+    setActiveTab('map');
+    if (webViewRef.current && webViewRef.current.postMessage) {
+      webViewRef.current.postMessage(
+        JSON.stringify({
+          type: 'SET_MARKERS',
+          places: [],
+        })
+      );
+    }
+    setProfileModalVisible(true);
+  };
+
   // Open Check-in Modal for New Check-in
   const openNewCheckInModal = (coords = null) => {
+    if (isReadOnlyViewer) return;
     setEditingPinId(null);
     setCountryName('');
     setCities([]);
@@ -130,6 +144,7 @@ export default function App() {
 
   // Open Modal to Edit existing Country Check-in (add/edit cities, beers, or food & drink spots)
   const openEditModal = (place) => {
+    if (isReadOnlyViewer) return;
     setActionSheetVisible(false);
     setSelectedSpotName(null);
     setEditingPinId(place.id);
@@ -145,11 +160,11 @@ export default function App() {
 
   // Delete Check-in
   const handleDeletePin = () => {
-    if (!editingPinId) return;
+    if (!editingPinId || isReadOnlyViewer) return;
     const updated = visitedPlaces.filter((p) => p.id !== editingPinId);
     setVisitedPlaces(updated);
 
-    if (webViewRef.current) {
+    if (webViewRef.current && webViewRef.current.postMessage) {
       webViewRef.current.postMessage(
         JSON.stringify({
           type: 'SET_MARKERS',
@@ -166,6 +181,7 @@ export default function App() {
     finalBeers = beers,
     finalFoodDrinks = foodDrinks
   ) => {
+    if (isReadOnlyViewer) return;
     if (!countryName.trim() || finalCities.length === 0) {
       Alert.alert(
         'Missing Destination',
@@ -275,7 +291,7 @@ export default function App() {
 
     setVisitedPlaces(updatedList);
 
-    if (webViewRef.current) {
+    if (webViewRef.current && webViewRef.current.postMessage) {
       webViewRef.current.postMessage(
         JSON.stringify({
           type: 'SET_MARKERS',
@@ -293,7 +309,9 @@ export default function App() {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'MAP_CLICK') {
-        openNewCheckInModal({ lat: data.lat, lng: data.lng });
+        if (!isReadOnlyViewer) {
+          openNewCheckInModal({ lat: data.lat, lng: data.lng });
+        }
       } else if (data.type === 'MARKER_CLICK') {
         const place = visitedPlaces.find((p) => p.id === data.placeId);
         if (place) {
@@ -307,51 +325,29 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 1. Profile Header (hidden for external read-only web viewers) */}
-      {!isReadOnlyWebViewer && (
-        <ProfileHeader
-          profilePhoto={profilePhoto}
-          displayName={displayName}
-          homeLocation={homeLocation}
-          youtubeUrl={youtubeUrl}
-          instagramUser={instagramUser}
-          tiktokUser={tiktokUser}
-          customLinkUrl={customLinkUrl}
-          customLinkLabel={customLinkLabel}
-          visitedPlaces={visitedPlaces}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onPickImage={handlePickImage}
-          onOpenProfileModal={() => setProfileModalVisible(true)}
-          onShareProfile={handleShareProfile}
-        />
-      )}
+      {/* 1. Profile Header (with World Map & Timeline/List tabs) */}
+      <ProfileHeader
+        profilePhoto={profilePhoto}
+        displayName={displayName}
+        homeLocation={homeLocation}
+        youtubeUrl={youtubeUrl}
+        instagramUser={instagramUser}
+        tiktokUser={tiktokUser}
+        customLinkUrl={customLinkUrl}
+        customLinkLabel={customLinkLabel}
+        visitedPlaces={visitedPlaces}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onPickImage={handlePickImage}
+        onOpenProfileModal={() => {
+          if (!isReadOnlyViewer) setProfileModalVisible(true);
+        }}
+        onShareProfile={handleShareProfile}
+        readOnly={isReadOnlyViewer}
+      />
 
-      {/* 2. Main Body */}
-      {activeTab === 'public' || isReadOnlyWebViewer ? (
-        <PublicProfileView
-          profilePhoto={profilePhoto}
-          displayName={
-            sharedProfileData?.displayName || displayName
-          }
-          homeLocation={
-            sharedProfileData?.homeLocation || homeLocation
-          }
-          visitedPlaces={
-            sharedProfileData?.visitedPlaces || visitedPlaces
-          }
-          onPickImage={isReadOnlyWebViewer ? null : handlePickImage}
-          onShareProfile={isReadOnlyWebViewer ? null : handleShareProfile}
-          onStartCreateMap={
-            isReadOnlyWebViewer
-              ? null
-              : () => {
-                  setActiveTab('map');
-                  openNewCheckInModal();
-                }
-          }
-        />
-      ) : activeTab === 'map' ? (
+      {/* 2. Main Body: World Map (main page) or Timeline & List */}
+      {activeTab === 'map' ? (
         <MapViewContainer
           webViewRef={webViewRef}
           visitedPlaces={visitedPlaces}
@@ -372,30 +368,43 @@ export default function App() {
           }}
           onEditPlace={openEditModal}
           onFindStays={openStay22}
+          readOnly={isReadOnlyViewer}
         />
       )}
 
-      {/* 3. Bottom Signature Logo (hidden when sticky CTA is active in public card view) */}
-      {activeTab !== 'public' && !isReadOnlyWebViewer && (
-        <View style={styles.footerBrand}>
-          <Text style={styles.footerBrandText}>
-            No Plan, Just PinCheck <Text style={styles.footerSubText}>• by No Plan Checkin</Text>
-          </Text>
+      {/* 3. Bottom Area: Sticky "📍 Create Your PinCheck Map" CTA for External Viewers OR "+ Check-in" for Map Owner */}
+      {isReadOnlyViewer ? (
+        <View style={styles.stickyCtaContainer}>
+          <TouchableOpacity
+            style={styles.stickyCtaButton}
+            onPress={handleCreateOwnMap}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.stickyCtaButtonText}>
+              📍 Create Your PinCheck Map
+            </Text>
+          </TouchableOpacity>
         </View>
+      ) : (
+        <>
+          <View style={styles.footerBrand}>
+            <Text style={styles.footerBrandText}>
+              No Plan, Just PinCheck{' '}
+              <Text style={styles.footerSubText}>• by No Plan Checkin</Text>
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => openNewCheckInModal()}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.fabText}>+ Check-in</Text>
+          </TouchableOpacity>
+        </>
       )}
 
-      {/* Floating Add Check-in Button (hidden in read-only public card view) */}
-      {activeTab !== 'public' && !isReadOnlyWebViewer && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => openNewCheckInModal()}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabText}>+ Check-in</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* MODAL: Place Action Sheet (Cities + Beers by Country + Food & Drink spots with Google Maps / Uber / Bolt) */}
+      {/* MODAL: Place Action Sheet (Cities + Beers by Country + Food & Drink spots with Google Maps / Find Stays / Uber / Bolt) */}
       <ActionSheetModal
         visible={actionSheetVisible}
         selectedPlace={selectedPlace}
@@ -406,6 +415,7 @@ export default function App() {
           setSelectedSpotName(null);
         }}
         onEditPlace={openEditModal}
+        readOnly={isReadOnlyViewer}
       />
 
       {/* MODAL: Check-in Form */}

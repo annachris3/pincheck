@@ -16,6 +16,7 @@ export function ActionSheetModal({
   onSelectSpotName,
   onClose,
   onEditPlace,
+  readOnly = false,
 }) {
   const citiesList = selectedPlace ? getPlaceCitiesList(selectedPlace) : [];
   const beers = Array.isArray(selectedPlace?.beers) ? selectedPlace.beers : [];
@@ -188,13 +189,15 @@ export function ActionSheetModal({
 
                   {/* Easy-to-tap Edit Pill right at the top + Close X */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity
-                      style={styles.topEditBadgeBtn}
-                      onPress={() => onEditPlace(selectedPlace)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.topEditBadgeText}>✏️ Edit</Text>
-                    </TouchableOpacity>
+                    {!readOnly && (
+                      <TouchableOpacity
+                        style={styles.topEditBadgeBtn}
+                        onPress={() => onEditPlace(selectedPlace)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.topEditBadgeText}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity
                       style={styles.closeSheetBtn}
@@ -386,15 +389,17 @@ export function ActionSheetModal({
                 )}
 
                 {/* Prominent Full-Width Edit Button with generous safe bottom spacing */}
-                <TouchableOpacity
-                  style={styles.editPlaceBtn}
-                  onPress={() => onEditPlace(selectedPlace)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.editPlaceBtnText}>
-                    ✏️ Edit or Add Cities / Beers / Spots
-                  </Text>
-                </TouchableOpacity>
+                {!readOnly && (
+                  <TouchableOpacity
+                    style={styles.editPlaceBtn}
+                    onPress={() => onEditPlace(selectedPlace)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.editPlaceBtnText}>
+                      ✏️ Edit or Add Cities / Beers / Spots
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             )
           )}

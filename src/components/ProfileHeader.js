@@ -24,6 +24,7 @@ export function ProfileHeader({
   onPickImage,
   onOpenProfileModal,
   onShareProfile,
+  readOnly = false,
 }) {
   const [failedUri, setFailedUri] = useState(null);
 
@@ -43,27 +44,35 @@ export function ProfileHeader({
   return (
     <View style={styles.header}>
       <View style={styles.profileRow}>
-        {/* Avatar Photo Picker */}
-        <TouchableOpacity onPress={onPickImage} style={styles.avatarTouchable}>
+        {/* Avatar Photo Picker (Read-Only when viewed by external invitees) */}
+        <TouchableOpacity
+          disabled={readOnly}
+          onPress={readOnly ? undefined : onPickImage}
+          activeOpacity={readOnly ? 1 : 0.7}
+          style={styles.avatarTouchable}
+        >
           <Image
             source={{ uri: avatarUri }}
             style={styles.avatarImage}
             onError={() => setFailedUri(profilePhoto)}
           />
-          <View style={styles.cameraIconBadge}>
-            <Text style={{ fontSize: 10 }}>📷</Text>
-          </View>
+          {!readOnly && (
+            <View style={styles.cameraIconBadge}>
+              <Text style={{ fontSize: 10 }}>📷</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         {/* User Name & Lowercase Blue pincheck */}
         <TouchableOpacity
+          disabled={readOnly}
           style={styles.profileTextContainer}
-          onPress={onOpenProfileModal}
-          activeOpacity={0.7}
+          onPress={readOnly ? undefined : onOpenProfileModal}
+          activeOpacity={readOnly ? 1 : 0.7}
         >
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{displayName}</Text>
-            <Text style={styles.editIconHint}>✏️</Text>
+            {!readOnly && <Text style={styles.editIconHint}>✏️</Text>}
           </View>
           <Text style={styles.appBrandLowercase}>pincheck</Text>
           <Text style={styles.homeLocation}>📍 {homeLocation}</Text>
@@ -114,14 +123,16 @@ export function ProfileHeader({
         ) : null}
 
         {/* Native Share Profile Button */}
-        <TouchableOpacity
-          style={[styles.socialPill, { backgroundColor: '#38bdf8', borderColor: '#38bdf8' }]}
-          onPress={onShareProfile}
-        >
-          <Text style={[styles.socialPillText, { color: '#0f172a', fontWeight: '800' }]}>
-            📤 Share Profile
-          </Text>
-        </TouchableOpacity>
+        {!readOnly && (
+          <TouchableOpacity
+            style={[styles.socialPill, { backgroundColor: '#38bdf8', borderColor: '#38bdf8' }]}
+            onPress={onShareProfile}
+          >
+            <Text style={[styles.socialPillText, { color: '#0f172a', fontWeight: '800' }]}>
+              📤 Share Profile
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Macro Stats Strip */}
@@ -143,7 +154,7 @@ export function ProfileHeader({
         </View>
       </View>
 
-      {/* Tab Switcher */}
+      {/* Tab Switcher: World Map (main page) & Timeline / List */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'map' && styles.tabButtonActive]}
@@ -159,16 +170,7 @@ export function ProfileHeader({
           onPress={() => setActiveTab('timeline')}
         >
           <Text style={[styles.tabText, activeTab === 'timeline' && styles.tabTextActive]}>
-            📅 Timeline
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'public' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('public')}
-        >
-          <Text style={[styles.tabText, activeTab === 'public' && styles.tabTextActive]}>
-            🌐 Public Card
+            📅 Timeline & List
           </Text>
         </TouchableOpacity>
       </View>

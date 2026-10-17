@@ -13,7 +13,28 @@ export function TimelineView({
   onSelectFoodSpot,
   onEditPlace,
   onFindStays,
+  readOnly = false,
 }) {
+  // Build unique country stamp badges
+  const countryStamps = [];
+  const seenCountries = new Set();
+  visitedPlaces.forEach((place) => {
+    const cName = (place.country || '').trim();
+    if (!cName) return;
+    const key = cName.toLowerCase();
+    if (!seenCountries.has(key)) {
+      seenCountries.add(key);
+      const citiesInPlace = getPlaceCitiesList(place);
+      countryStamps.push({
+        id: place.id,
+        country: cName,
+        year: place.year || '2026',
+        cityCount: citiesInPlace.length,
+        placeRef: place,
+      });
+    }
+  });
+
   const groupedByYear = visitedPlaces.reduce((acc, place) => {
     const y = place.year || 'Other';
     if (!acc[y]) acc[y] = [];
@@ -24,8 +45,38 @@ export function TimelineView({
   return (
     <ScrollView style={styles.timelineContainer}>
       <Text style={styles.timelineHelp}>
-        💡 Tap a country check-in to add/edit cities, or tap any 🍽️ spot for Maps & Rides
+        {readOnly
+          ? '💡 Tap any country or 🍽️ spot to view details, Google Maps & 🏨 Find Stays'
+          : '💡 Tap a country check-in to add/edit cities, or tap any 🍽️ spot for Maps & Rides'}
       </Text>
+
+      {/* Country Stamp Badges */}
+      {countryStamps.length > 0 && (
+        <View style={styles.publicSectionBlock}>
+          <Text style={styles.publicSectionTitle}>
+            🛂 Country Stamp Badges ({countryStamps.length})
+          </Text>
+          <View style={styles.stampGrid}>
+            {countryStamps.map((stamp) => (
+              <TouchableOpacity
+                key={stamp.id}
+                style={styles.stampBadge}
+                activeOpacity={0.75}
+                onPress={() => onSelectPlace(stamp.placeRef)}
+              >
+                <Text style={styles.stampCountryText}>
+                  🌍 {stamp.country.toUpperCase()}
+                </Text>
+                <Text style={styles.stampMetaText}>
+                  ★ {stamp.cityCount}{' '}
+                  {stamp.cityCount === 1 ? 'City' : 'Cities'} · {stamp.year}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
       {Object.keys(groupedByYear)
         .sort((a, b) => b - a)
         .map((yearKey) => {
@@ -65,13 +116,15 @@ export function TimelineView({
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <Text style={styles.cardMonth}>{item.month}</Text>
-                          <TouchableOpacity
-                            style={styles.cardEditPill}
-                            onPress={() => onEditPlace(item)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.cardEditPillText}>✏️ Edit</Text>
-                          </TouchableOpacity>
+                          {!readOnly && (
+                            <TouchableOpacity
+                              style={styles.cardEditPill}
+                              onPress={() => onEditPlace(item)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.cardEditPillText}>✏️ Edit</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
 
@@ -208,7 +261,7 @@ export function TimelineView({
             </View>
           );
         })}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 110 }} />
     </ScrollView>
   );
 }

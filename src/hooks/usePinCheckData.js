@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   STORAGE_PLACES_KEY,
@@ -8,6 +9,54 @@ import {
 import { getPlaceCitiesList } from '../utils/categories';
 
 const CURRENT_SCHEMA_VERSION = 3;
+export const CLOUD_PROFILE_URL =
+  'https://api.restful-api.dev/objects/ff808181a09d98f701a149b887607f2c';
+
+const GUEST_PLACES_KEY = '@pincheck_guest_places_v1';
+const GUEST_PROFILE_KEY = '@pincheck_guest_profile_v1';
+
+// Helper to convert local file:// URI on phone to base64 data URI so it syncs to web invite card
+const convertFileUriToDataUrl = async (uri) => {
+  if (!uri || typeof uri !== 'string' || uri.startsWith('data:') || uri.startsWith('http')) {
+    return uri;
+  }
+  try {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : uri);
+      };
+      reader.onerror = () => resolve(uri);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return uri;
+  }
+};
+
+// Sync owner's profile + photo + pins to cloud so https://pincheckin.expo.app stays short & up to date
+export const syncPublicProfileToCloud = async (profilePayload) => {
+  if (Platform.OS === 'web') return;
+  try {
+    await fetch(CLOUD_PROFILE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: 'pincheckin-profile',
+        data: {
+          ...profilePayload,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    });
+  } catch (e) {
+    console.log('Cloud sync skipped:', e);
+  }
+};
 
 // Future-proof normalizer: supports multiple cities per country check-in (`cities: [{ name, lat, lng }]`)
 // while preserving all existing pins, beers, and foodDrinks.
@@ -118,6 +167,12 @@ export const normalizeStoredPlaces = (rawList) => {
 };
 
 export function usePinCheckData() {
+  // On web, visitors start in read-only Public Viewer mode unless they click "📍 Create Your PinCheck Map"
+  const [isReadOnlyViewer, setIsReadOnlyViewer] = useState(
+    Platform.OS === 'web'
+  );
+  const [isGuestCreator, setIsGuestCreator] = useState(false);
+
   // Profile State
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [displayName, setDisplayName] = useState('Anna');
@@ -136,10 +191,59 @@ export function usePinCheckData() {
   const [visitedPlaces, setVisitedPlaces] = useState(INITIAL_PLACES);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
-  // 1. Load data from device on app start
+  // Switch a web visitor from Read-Only view of the shared map into their OWN brand-new blank PinCheck map
+  const startNewUserMap = useCallback(async () => {
+    setIsReadOnlyViewer(false);
+    setIsGuestCreator(true);
+    setProfilePhoto(null);
+    setDisplayName('My Travel Map');
+    setHomeLocation('Your City, Country');
+    setYoutubeUrl('');
+    setInstagramUser('');
+    setTiktokUser('');
+    setCustomLinkUrl('');
+    setCustomLinkLabel('My Link');
+    setVisitedPlaces([]);
+    try {
+      await AsyncStorage.removeItem(GUEST_PLACES_KEY);
+      await AsyncStorage.removeItem(GUEST_PROFILE_KEY);
+    } catch {}
+  }, []);
+
+  // 1. Load data on start
   useEffect(() => {
     const loadStoredData = async () => {
       try {
+        // WEB PUBLIC VIEWER: Fetch the owner's live shared profile (photo, name, pins) from cloud
+        if (Platform.OS === 'web') {
+          try {
+            const response = await fetch(CLOUD_PROFILE_URL);
+            if (response.ok) {
+              const json = await response.json();
+              const cloud = json?.data;
+              if (cloud) {
+                if (cloud.profilePhoto) setProfilePhoto(cloud.profilePhoto);
+                if (cloud.displayName) setDisplayName(cloud.displayName);
+                if (cloud.homeLocation) setHomeLocation(cloud.homeLocation);
+                if (cloud.youtubeUrl !== undefined) setYoutubeUrl(cloud.youtubeUrl);
+                if (cloud.instagramUser !== undefined) setInstagramUser(cloud.instagramUser);
+                if (cloud.tiktokUser !== undefined) setTiktokUser(cloud.tiktokUser);
+                if (cloud.customLinkUrl !== undefined) setCustomLinkUrl(cloud.customLinkUrl);
+                if (cloud.customLinkLabel) setCustomLinkLabel(cloud.customLinkLabel);
+                if (Array.isArray(cloud.visitedPlaces) && cloud.visitedPlaces.length > 0) {
+                  setVisitedPlaces(normalizeStoredPlaces(cloud.visitedPlaces));
+                }
+              }
+            }
+          } catch (err) {
+            console.log('Could not fetch cloud profile:', err);
+          } finally {
+            setIsStorageLoaded(true);
+          }
+          return;
+        }
+
+        // NATIVE APP: Load from local AsyncStorage
         const storedPlaces = await AsyncStorage.getItem(STORAGE_PLACES_KEY);
         if (storedPlaces !== null) {
           const parsed = JSON.parse(storedPlaces);
@@ -157,7 +261,10 @@ export function usePinCheckData() {
         const storedProfile = await AsyncStorage.getItem(STORAGE_PROFILE_KEY);
         if (storedProfile !== null) {
           const profile = JSON.parse(storedProfile);
-          if (profile.profilePhoto) setProfilePhoto(profile.profilePhoto);
+          if (profile.profilePhoto) {
+            const dataUrl = await convertFileUriToDataUrl(profile.profilePhoto);
+            setProfilePhoto(dataUrl);
+          }
           if (profile.displayName) setDisplayName(profile.displayName);
           if (profile.homeLocation) setHomeLocation(profile.homeLocation);
           if (profile.youtubeUrl !== undefined) setYoutubeUrl(profile.youtubeUrl);
@@ -176,13 +283,20 @@ export function usePinCheckData() {
     loadStoredData();
   }, []);
 
-  // 2. Auto-save pins (only after initial load has finished)
+  // 2. Auto-save pins & sync to cloud (never overwrite owner's data if web viewer!)
   useEffect(() => {
     if (!isStorageLoaded) return;
+    if (Platform.OS === 'web' && isReadOnlyViewer) return;
+
+    const targetPlacesKey =
+      Platform.OS === 'web' && isGuestCreator
+        ? GUEST_PLACES_KEY
+        : STORAGE_PLACES_KEY;
+
     const savePlaces = async () => {
       try {
         await AsyncStorage.setItem(
-          STORAGE_PLACES_KEY,
+          targetPlacesKey,
           JSON.stringify(visitedPlaces)
         );
       } catch (e) {
@@ -190,11 +304,18 @@ export function usePinCheckData() {
       }
     };
     savePlaces();
-  }, [visitedPlaces, isStorageLoaded]);
+  }, [visitedPlaces, isStorageLoaded, isReadOnlyViewer, isGuestCreator]);
 
-  // 3. Auto-save profile details including profilePhoto (only after initial load has finished)
+  // 3. Auto-save profile details & sync owner's live profile + photo + pins to cloud
   useEffect(() => {
     if (!isStorageLoaded) return;
+    if (Platform.OS === 'web' && isReadOnlyViewer) return;
+
+    const targetProfileKey =
+      Platform.OS === 'web' && isGuestCreator
+        ? GUEST_PROFILE_KEY
+        : STORAGE_PROFILE_KEY;
+
     const saveProfile = async () => {
       try {
         const profileData = {
@@ -209,9 +330,17 @@ export function usePinCheckData() {
           updatedAt: new Date().toISOString(),
         };
         await AsyncStorage.setItem(
-          STORAGE_PROFILE_KEY,
+          targetProfileKey,
           JSON.stringify(profileData)
         );
+
+        // If on owner's native phone app, also sync to cloud so https://pincheckin.expo.app has latest photo & pins
+        if (Platform.OS !== 'web') {
+          await syncPublicProfileToCloud({
+            ...profileData,
+            visitedPlaces,
+          });
+        }
       } catch (e) {
         console.log('Error saving profile:', e);
       }
@@ -226,7 +355,10 @@ export function usePinCheckData() {
     tiktokUser,
     customLinkUrl,
     customLinkLabel,
+    visitedPlaces,
     isStorageLoaded,
+    isReadOnlyViewer,
+    isGuestCreator,
   ]);
 
   return {
@@ -249,5 +381,8 @@ export function usePinCheckData() {
     visitedPlaces,
     setVisitedPlaces,
     isStorageLoaded,
+    isReadOnlyViewer,
+    isGuestCreator,
+    startNewUserMap,
   };
 }
