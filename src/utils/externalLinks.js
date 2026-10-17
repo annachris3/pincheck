@@ -3,11 +3,11 @@ import * as WebBrowser from 'expo-web-browser';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
-  getTotalBeersCount,
-  getTotalFoodDrinksCount,
 } from './categories';
 
 const STAY22_AFFILIATE_ID = 'noplancheckin';
+export const PINCHECK_APP_DOWNLOAD_URL =
+  'https://expo.dev/accounts/annachris3/projects/travel-log-app/builds/ceb0bca3-59d1-414b-b3b8-02fdc5794bd8';
 
 // Safe Social Opener
 export const openSocial = (url) => {
@@ -16,6 +16,31 @@ export const openSocial = (url) => {
   Linking.openURL(formatted).catch(() => {
     Alert.alert('Cannot Open Link', 'The link could not be opened.');
   });
+};
+
+// Build shareable Public Profile URL
+export const buildProfileShareUrl = ({ displayName, customLinkUrl }) => {
+  if (customLinkUrl && customLinkUrl.trim()) {
+    const raw = customLinkUrl.trim();
+    return raw.startsWith('http') ? raw : `https://${raw}`;
+  }
+  const slug =
+    (displayName || 'traveler')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'traveler';
+  return `https://pincheck.app/u/${slug}`;
+};
+
+// Open App Download / Registration CTA ("📍 Create Your PinCheck Map")
+export const openCreatePinCheckMap = async () => {
+  try {
+    await WebBrowser.openBrowserAsync(PINCHECK_APP_DOWNLOAD_URL);
+  } catch {
+    Linking.openURL(PINCHECK_APP_DOWNLOAD_URL).catch(() => {
+      Alert.alert('PinCheck', 'Could not open the PinCheck registration page.');
+    });
+  }
 };
 
 // Stay22 In-App Accommodation Search ("🏨 Find Stays")
@@ -100,43 +125,33 @@ export const openBolt = (place) => {
     .catch(() => Linking.openURL(boltWebUrl));
 };
 
-// Share Profile Function
+// Share Profile Function (Profile Screen In-App Share Trigger)
 export const shareProfile = async ({
   displayName,
   visitedPlaces,
-  youtubeUrl,
-  instagramUser,
-  tiktokUser,
   customLinkUrl,
-  customLinkLabel,
 }) => {
   try {
+    const userName = (displayName || 'Traveler').trim();
     const countriesCount = getUniqueCountriesCount(visitedPlaces);
     const citiesCount = getUniqueCitiesCount(visitedPlaces);
-    const beersCount = getTotalBeersCount(visitedPlaces);
-    const foodDrinksCount = getTotalFoodDrinksCount(visitedPlaces);
+    const profileUrl = buildProfileShareUrl({
+      displayName: userName,
+      customLinkUrl,
+    });
 
-    const linksList = [
-      youtubeUrl ? `YouTube: ${youtubeUrl}` : null,
-      instagramUser ? `Instagram: @${instagramUser.replace('@', '')}` : null,
-      tiktokUser ? `TikTok: @${tiktokUser.replace('@', '')}` : null,
-      customLinkUrl ? `${customLinkLabel}: ${customLinkUrl}` : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    const message =
+      `Collect your travel stamps with me on PinCheck! ✈️📍\n` +
+      `${userName}'s Map: ${countriesCount} Countries · ${citiesCount} Cities\n` +
+      `See my map & start your own collection: ${profileUrl}`;
 
     await Share.share({
-      title: `${displayName} • PinCheck`,
-      message:
-        `✈️ Travel Log • PinCheck\n\n` +
-        `🌍 ${countriesCount} Countries | 🏙️ ${citiesCount} Cities\n` +
-        `📍 ${visitedPlaces.length} Check-ins\n` +
-        `🍺 ${beersCount} Local Beers Tasted\n` +
-        `🍽️ ${foodDrinksCount} Food & Drink Spots` +
-        (linksList ? `\n\nFollow my journey:\n${linksList}` : '') +
-        `\n\nNo Plan, Just PinCheck!`,
+      title: `${userName}'s Map • PinCheck`,
+      message,
+      url: profileUrl,
     });
   } catch (error) {
     console.log('Share error:', error);
   }
 };
+

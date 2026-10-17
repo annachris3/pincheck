@@ -56,17 +56,6 @@ The user profile acts as an aggregate dashboard reflecting the user's travel foo
   * Beer Tally (spotlight count of unique local beers tried)
   * Food & Cafe Counts
 * **Views & Visualization:** Quick toggles between a World Map and a chronological Timeline.
-* **Share Card:** Generates a structured text export for social apps (WhatsApp, Instagram, etc.):
-```text
-✈️ Travel Log • PinCheck
-
-🌍 2 Countries | 🏙️ 2 Cities
-📍 2 Total Check-ins
-🍺 0 Local Beers Tasted
-
-📍 1 Sights & Landmarks | 🍽️ 1 Food Spots
-```
-*(Counts dynamically adapt based on actual user logs)*
 
 ---
 
@@ -150,6 +139,33 @@ https://www.stay22.com/embed/gm?aid=noplancheckin&address={CITY_OR_COUNTRY}
 
 ---
 
+# Task: Profile Sharing Configuration & Responsive Public Web Profile Card
+
+## 1. In-App Share Trigger (Profile Screen)
+* Add a **"Share Profile"** button using React Native's `Share.share` API.
+* **Message template:**
+```text
+Collect your travel stamps with me on PinCheck! ✈️📍
+[User Name]'s Map: [X] Countries · [Y] Cities
+See my map & start your own collection: [Profile_URL]
+```
+
+## 2. Responsive Public Web Profile Card
+1. **Structure:**
+   * **Top:** User avatar, name, and total stats (Countries, Cities, Pins).
+   * **Middle (Content):** Compact, clean version of the full profile:
+     * Country stamp badges
+     * Selected pins/spots (Landmarks, Sights, Cafes)
+     * Maintain the Stay22 **"🏨 Find Stays"** affiliate button on place cards.
+   * **Bottom (Fixed/Sticky Call to Action):**
+     * Floating bottom button: **"📍 Create Your PinCheck Map"**
+     * Links directly to app download / registration.
+2. **Mobile-First Web Experience:**
+   * Ensure fast loading on mobile browsers (Safari/Chrome).
+   * Read-only view (no editing capabilities for external viewers).
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure
@@ -157,9 +173,10 @@ https://www.stay22.com/embed/gm?aid=noplancheckin&address={CITY_OR_COUNTRY}
 ```text
 src/
 ├── components/
-│   ├── ProfileHeader.js       # Avatar, profile details, social links, Share trigger, macro/taste stats, tabs
+│   ├── ProfileHeader.js       # Avatar, profile details, social links, Share Profile trigger, macro/taste stats, tabs
 │   ├── MapViewContainer.js    # Leaflet WebView + map HTML template
 │   ├── TimelineView.js        # Chronological timeline grouped by year with country/city badges & Find Stays
+│   ├── PublicProfileView.js   # Read-only responsive Public Web Profile Card with country stamps, Stay22, & sticky CTA
 │   ├── ActionSheetModal.js    # Venue details, Google Maps / Find Stays (Stay22) / Uber / Bolt buttons, Edit trigger
 │   ├── CheckInModal.js        # Dynamic Check-in form with multi-city, country beers, & auto-geocoded food spots
 │   └── EditProfileModal.js    # Profile, social links, & JSON Backup/Restore modal
@@ -171,6 +188,6 @@ src/
 │   └── styles.js              # Centralized StyleSheet definitions
 └── utils/
     ├── categories.js          # Category counters & multi-city helpers
-    ├── externalLinks.js       # openSocial, openInGoogleMaps, openStay22, openUber, openBolt, shareProfile
+    ├── externalLinks.js       # openSocial, openInGoogleMaps, openStay22, openUber, openBolt, shareProfile, buildProfileShareUrl
     └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates & searchVenueInCity helpers
 ```

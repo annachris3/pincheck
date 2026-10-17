@@ -50,3 +50,14 @@ export const getTotalFoodDrinksCount = (visitedPlaces) =>
       sum + (Array.isArray(place.foodDrinks) ? place.foodDrinks.length : 0),
     0
   );
+
+export const getTotalPinsCount = (visitedPlaces) =>
+  visitedPlaces.reduce((sum, place) => {
+    const citiesCount = getPlaceCitiesList(place).length;
+    const foodCount = Array.isArray(place.foodDrinks)
+      ? place.foodDrinks.length
+      : 0;
+    const beerCount = Array.isArray(place.beers) ? place.beers.length : 0;
+    return sum + Math.max(1, citiesCount + foodCount + beerCount);
+  }, 0);
+

@@ -21,13 +21,22 @@ import { styles } from './src/styles/styles';
 import { ProfileHeader } from './src/components/ProfileHeader';
 import { MapViewContainer } from './src/components/MapViewContainer';
 import { TimelineView } from './src/components/TimelineView';
+import { PublicProfileView } from './src/components/PublicProfileView';
 import { ActionSheetModal } from './src/components/ActionSheetModal';
 import { CheckInModal } from './src/components/CheckInModal';
 import { EditProfileModal } from './src/components/EditProfileModal';
 
 export default function App() {
   const webViewRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('map'); // 'map' or 'timeline'
+  const isReadOnlyWebViewer =
+    typeof window !== 'undefined' &&
+    window.location &&
+    (window.location.search.includes('public=1') ||
+      window.location.pathname.startsWith('/u/'));
+
+  const [activeTab, setActiveTab] = useState(
+    isReadOnlyWebViewer ? 'public' : 'map'
+  ); // 'map', 'timeline', or 'public'
 
   // Persistent Data Hook
   const {
@@ -294,26 +303,35 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 1. Profile Header */}
-      <ProfileHeader
-        profilePhoto={profilePhoto}
-        displayName={displayName}
-        homeLocation={homeLocation}
-        youtubeUrl={youtubeUrl}
-        instagramUser={instagramUser}
-        tiktokUser={tiktokUser}
-        customLinkUrl={customLinkUrl}
-        customLinkLabel={customLinkLabel}
-        visitedPlaces={visitedPlaces}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onPickImage={handlePickImage}
-        onOpenProfileModal={() => setProfileModalVisible(true)}
-        onShareProfile={handleShareProfile}
-      />
+      {/* 1. Profile Header (hidden for external read-only web viewers) */}
+      {!isReadOnlyWebViewer && (
+        <ProfileHeader
+          profilePhoto={profilePhoto}
+          displayName={displayName}
+          homeLocation={homeLocation}
+          youtubeUrl={youtubeUrl}
+          instagramUser={instagramUser}
+          tiktokUser={tiktokUser}
+          customLinkUrl={customLinkUrl}
+          customLinkLabel={customLinkLabel}
+          visitedPlaces={visitedPlaces}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onPickImage={handlePickImage}
+          onOpenProfileModal={() => setProfileModalVisible(true)}
+          onShareProfile={handleShareProfile}
+        />
+      )}
 
       {/* 2. Main Body */}
-      {activeTab === 'map' ? (
+      {activeTab === 'public' || isReadOnlyWebViewer ? (
+        <PublicProfileView
+          profilePhoto={profilePhoto}
+          displayName={displayName}
+          homeLocation={homeLocation}
+          visitedPlaces={visitedPlaces}
+        />
+      ) : activeTab === 'map' ? (
         <MapViewContainer
           webViewRef={webViewRef}
           visitedPlaces={visitedPlaces}
@@ -337,21 +355,25 @@ export default function App() {
         />
       )}
 
-      {/* 3. Bottom Signature Logo */}
-      <View style={styles.footerBrand}>
-        <Text style={styles.footerBrandText}>
-          No Plan, Just PinCheck <Text style={styles.footerSubText}>• by No Plan Checkin</Text>
-        </Text>
-      </View>
+      {/* 3. Bottom Signature Logo (hidden when sticky CTA is active in public card view) */}
+      {activeTab !== 'public' && !isReadOnlyWebViewer && (
+        <View style={styles.footerBrand}>
+          <Text style={styles.footerBrandText}>
+            No Plan, Just PinCheck <Text style={styles.footerSubText}>• by No Plan Checkin</Text>
+          </Text>
+        </View>
+      )}
 
-      {/* Floating Add Check-in Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => openNewCheckInModal()}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabText}>+ Check-in</Text>
-      </TouchableOpacity>
+      {/* Floating Add Check-in Button (hidden in read-only public card view) */}
+      {activeTab !== 'public' && !isReadOnlyWebViewer && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => openNewCheckInModal()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabText}>+ Check-in</Text>
+        </TouchableOpacity>
+      )}
 
       {/* MODAL: Place Action Sheet (Cities + Beers by Country + Food & Drink spots with Google Maps / Uber / Bolt) */}
       <ActionSheetModal

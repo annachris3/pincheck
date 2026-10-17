@@ -108,13 +108,13 @@ export function ProfileHeader({
           </TouchableOpacity>
         ) : null}
 
-        {/* Native Share / Invite Button */}
+        {/* Native Share Profile Button */}
         <TouchableOpacity
           style={[styles.socialPill, { backgroundColor: '#38bdf8', borderColor: '#38bdf8' }]}
           onPress={onShareProfile}
         >
           <Text style={[styles.socialPillText, { color: '#0f172a', fontWeight: '800' }]}>
-            📤 Share
+            📤 Share Profile
           </Text>
         </TouchableOpacity>
       </View>
@@ -155,6 +155,15 @@ export function ProfileHeader({
         >
           <Text style={[styles.tabText, activeTab === 'timeline' && styles.tabTextActive]}>
             📅 Timeline
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'public' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('public')}
+        >
+          <Text style={[styles.tabText, activeTab === 'public' && styles.tabTextActive]}>
+            🌐 Public Card
           </Text>
         </TouchableOpacity>
       </View>
