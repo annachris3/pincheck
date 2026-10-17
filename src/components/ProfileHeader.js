@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { styles } from '../styles/styles';
-import { openSocial } from '../utils/externalLinks';
+import { openSocial, DEFAULT_TRAVELER_AVATAR } from '../utils/externalLinks';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
@@ -25,6 +25,8 @@ export function ProfileHeader({
   onOpenProfileModal,
   onShareProfile,
 }) {
+  const [failedUri, setFailedUri] = useState(null);
+
   // Derived Macro Stats (counts all unique countries and all unique cities across multi-city entries)
   const uniqueCountries = getUniqueCountriesCount(visitedPlaces);
   const uniqueCities = getUniqueCitiesCount(visitedPlaces);
@@ -33,18 +35,21 @@ export function ProfileHeader({
   const beerCount = getTotalBeersCount(visitedPlaces);
   const foodDrinkCount = getTotalFoodDrinksCount(visitedPlaces);
 
+  const avatarUri =
+    profilePhoto && profilePhoto !== failedUri
+      ? profilePhoto
+      : DEFAULT_TRAVELER_AVATAR;
+
   return (
     <View style={styles.header}>
       <View style={styles.profileRow}>
         {/* Avatar Photo Picker */}
         <TouchableOpacity onPress={onPickImage} style={styles.avatarTouchable}>
-          {profilePhoto ? (
-            <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitial}>{displayName.charAt(0) || 'A'}</Text>
-            </View>
-          )}
+          <Image
+            source={{ uri: avatarUri }}
+            style={styles.avatarImage}
+            onError={() => setFailedUri(profilePhoto)}
+          />
           <View style={styles.cameraIconBadge}>
             <Text style={{ fontSize: 10 }}>📷</Text>
           </View>

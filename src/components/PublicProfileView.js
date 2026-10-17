@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   openStay22,
   openInGoogleMaps,
   openCreatePinCheckMap,
+  DEFAULT_TRAVELER_AVATAR,
 } from '../utils/externalLinks';
 
 export function PublicProfileView({
@@ -24,7 +25,17 @@ export function PublicProfileView({
   displayName,
   homeLocation,
   visitedPlaces,
+  onPickImage = null,
+  onShareProfile = null,
+  onStartCreateMap = null,
 }) {
+  const [failedUri, setFailedUri] = useState(null);
+
+  const avatarUri =
+    profilePhoto && profilePhoto !== failedUri
+      ? profilePhoto
+      : DEFAULT_TRAVELER_AVATAR;
+
   const countriesCount = getUniqueCountriesCount(visitedPlaces);
   const citiesCount = getUniqueCitiesCount(visitedPlaces);
   const pinsCount = getTotalPinsCount(visitedPlaces);
@@ -117,25 +128,58 @@ export function PublicProfileView({
         <View style={styles.publicCardContainer}>
           {/* 1. TOP: User Avatar, Name & Total Stats (Countries, Cities, Pins) */}
           <View style={styles.publicTopCard}>
-            <View style={styles.publicBadgeHeader}>
-              <Text style={styles.publicBadgeHeaderText}>
-                ✈️ PINCHECK PUBLIC TRAVEL CARD
-              </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
+              <View style={[styles.publicBadgeHeader, { marginBottom: 0 }]}>
+                <Text style={styles.publicBadgeHeaderText}>
+                  ✈️ PINCHECK PUBLIC TRAVEL CARD
+                </Text>
+              </View>
+
+              {onShareProfile ? (
+                <TouchableOpacity
+                  style={[
+                    styles.socialPill,
+                    { backgroundColor: '#38bdf8', borderColor: '#38bdf8' },
+                  ]}
+                  onPress={onShareProfile}
+                >
+                  <Text
+                    style={[
+                      styles.socialPillText,
+                      { color: '#0f172a', fontWeight: '800' },
+                    ]}
+                  >
+                    📤 Share Invite
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <View style={styles.publicIdentityRow}>
-              {profilePhoto ? (
+              <TouchableOpacity
+                disabled={!onPickImage}
+                onPress={onPickImage || undefined}
+                activeOpacity={onPickImage ? 0.75 : 1}
+                style={{ position: 'relative', marginRight: 14 }}
+              >
                 <Image
-                  source={{ uri: profilePhoto }}
-                  style={styles.publicAvatarImage}
+                  source={{ uri: avatarUri }}
+                  style={[styles.publicAvatarImage, { marginRight: 0 }]}
+                  onError={() => setFailedUri(profilePhoto)}
                 />
-              ) : (
-                <View style={styles.publicAvatarPlaceholder}>
-                  <Text style={styles.publicAvatarInitial}>
-                    {(displayName || 'A').charAt(0)}
-                  </Text>
-                </View>
-              )}
+                {onPickImage ? (
+                  <View style={styles.cameraIconBadge}>
+                    <Text style={{ fontSize: 10 }}>📷</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
 
               <View style={{ flex: 1 }}>
                 <Text style={styles.publicUserName}>{displayName}</Text>
@@ -260,7 +304,7 @@ export function PublicProfileView({
       <View style={styles.stickyCtaContainer}>
         <TouchableOpacity
           style={styles.stickyCtaButton}
-          onPress={openCreatePinCheckMap}
+          onPress={() => openCreatePinCheckMap(onStartCreateMap)}
           activeOpacity={0.85}
         >
           <Text style={styles.stickyCtaButtonText}>

@@ -1,13 +1,19 @@
-import { Alert, Linking, Share } from 'react-native';
+import { Alert, Linking, Share, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
+  getPlaceCitiesList,
 } from './categories';
 
 const STAY22_AFFILIATE_ID = 'noplancheckin';
-export const PINCHECK_APP_DOWNLOAD_URL =
-  'https://expo.dev/accounts/annachris3/projects/travel-log-app/builds/ceb0bca3-59d1-414b-b3b8-02fdc5794bd8';
+
+// Live hosted PinCheck Web App URL (EAS Hosting production deployment)
+export const PINCHECK_WEB_BASE_URL = 'https://travel-log-app.expo.app';
+
+// Default high-reliability traveler avatar photo when user hasn't uploaded one or views on web
+export const DEFAULT_TRAVELER_AVATAR =
+  'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=300&q=80';
 
 // Safe Social Opener
 export const openSocial = (url) => {
@@ -18,27 +24,133 @@ export const openSocial = (url) => {
   });
 };
 
-// Build shareable Public Profile URL
-export const buildProfileShareUrl = ({ displayName, customLinkUrl }) => {
-  if (customLinkUrl && customLinkUrl.trim()) {
-    const raw = customLinkUrl.trim();
-    return raw.startsWith('http') ? raw : `https://${raw}`;
+// Encode compact profile payload for shareable URL so external viewers see the exact user's map
+export const encodeSharedProfilePayload = ({
+  displayName,
+  homeLocation,
+  visitedPlaces,
+}) => {
+  try {
+    const compactPlaces = (visitedPlaces || []).slice(0, 20).map((p) => ({
+      c: p.country,
+      y: p.year,
+      m: p.month,
+      ct: getPlaceCitiesList(p).map((cityObj) => cityObj.name),
+      fd: Array.isArray(p.foodDrinks)
+        ? p.foodDrinks.map((f) =>
+            typeof f === 'string'
+              ? { n: f, ct: p.city || '' }
+              : { n: f.name, ct: f.city || p.city || '' }
+          )
+        : [],
+      b: Array.isArray(p.beers) ? p.beers : [],
+    }));
+
+    const payload = {
+      n: (displayName || 'Traveler').trim(),
+      h: (homeLocation || '').trim(),
+      p: compactPlaces,
+    };
+
+    const jsonStr = JSON.stringify(payload);
+    return encodeURIComponent(jsonStr);
+  } catch {
+    return '';
   }
-  const slug =
-    (displayName || 'traveler')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'traveler';
-  return `https://pincheck.app/u/${slug}`;
+};
+
+// Decode compact profile payload from URL query parameters on web
+export const decodeSharedProfileFromUrl = () => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.location) {
+    return null;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('public') && !window.location.pathname.startsWith('/u/')) {
+      return null;
+    }
+    const rawData = params.get('d');
+    if (!rawData) {
+      return { isPublicViewer: true, sharedData: null };
+    }
+    const parsed = JSON.parse(decodeURIComponent(rawData));
+    const places = Array.isArray(parsed.p)
+      ? parsed.p.map((item, idx) => {
+          const cities = Array.isArray(item.ct)
+            ? item.ct.map((name) => ({ name, lat: 48.2082, lng: 16.3738 }))
+            : [];
+          return {
+            id: `shared-${idx}`,
+            country: item.c || 'Unknown',
+            city: cities[0]?.name || '',
+            cities,
+            year: item.y || '2026',
+            month: item.m || '',
+            foodDrinks: Array.isArray(item.fd)
+              ? item.fd.map((f) => ({
+                  name: f.n,
+                  city: f.ct,
+                  address: '',
+                }))
+              : [],
+            beers: Array.isArray(item.b) ? item.b : [],
+          };
+        })
+      : null;
+
+    return {
+      isPublicViewer: true,
+      sharedData: {
+        displayName: parsed.n || 'Traveler',
+        homeLocation: parsed.h || 'World Traveler',
+        visitedPlaces: places,
+      },
+    };
+  } catch {
+    return { isPublicViewer: true, sharedData: null };
+  }
+};
+
+// Build shareable Public Profile URL (always points to the live working web app)
+export const buildProfileShareUrl = ({
+  displayName,
+  homeLocation,
+  visitedPlaces,
+}) => {
+  const baseUrl =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location?.origin
+      ? window.location.origin
+      : PINCHECK_WEB_BASE_URL;
+
+  const encoded = encodeSharedProfilePayload({
+    displayName,
+    homeLocation,
+    visitedPlaces,
+  });
+
+  if (encoded) {
+    return `${baseUrl}/?public=1&d=${encoded}`;
+  }
+  return `${baseUrl}/?public=1`;
 };
 
 // Open App Download / Registration CTA ("📍 Create Your PinCheck Map")
-export const openCreatePinCheckMap = async () => {
+export const openCreatePinCheckMap = async (onStartInApp = null) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.location.href = `${window.location.origin}/?create=1`;
+    return;
+  }
+  if (typeof onStartInApp === 'function') {
+    onStartInApp();
+    return;
+  }
   try {
-    await WebBrowser.openBrowserAsync(PINCHECK_APP_DOWNLOAD_URL);
+    await WebBrowser.openBrowserAsync(`${PINCHECK_WEB_BASE_URL}/?create=1`);
   } catch {
-    Linking.openURL(PINCHECK_APP_DOWNLOAD_URL).catch(() => {
-      Alert.alert('PinCheck', 'Could not open the PinCheck registration page.');
+    Linking.openURL(`${PINCHECK_WEB_BASE_URL}/?create=1`).catch(() => {
+      Alert.alert('PinCheck', 'Could not open PinCheck.');
     });
   }
 };
@@ -67,6 +179,11 @@ export const openStay22 = async (place, spotName = null) => {
 
   const encodedAddress = encodeURIComponent(targetAddress);
   const url = `https://www.stay22.com/embed/gm?aid=${STAY22_AFFILIATE_ID}&address=${encodedAddress}`;
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
 
   try {
     await WebBrowser.openBrowserAsync(url);
@@ -128,8 +245,8 @@ export const openBolt = (place) => {
 // Share Profile Function (Profile Screen In-App Share Trigger)
 export const shareProfile = async ({
   displayName,
+  homeLocation,
   visitedPlaces,
-  customLinkUrl,
 }) => {
   try {
     const userName = (displayName || 'Traveler').trim();
@@ -137,7 +254,8 @@ export const shareProfile = async ({
     const citiesCount = getUniqueCitiesCount(visitedPlaces);
     const profileUrl = buildProfileShareUrl({
       displayName: userName,
-      customLinkUrl,
+      homeLocation,
+      visitedPlaces,
     });
 
     const message =
@@ -154,4 +272,3 @@ export const shareProfile = async ({
     console.log('Share error:', error);
   }
 };
-

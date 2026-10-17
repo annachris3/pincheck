@@ -15,7 +15,11 @@ import {
 } from './src/hooks/usePinCheckData';
 import { fetchCoordinates } from './src/utils/geocoding';
 import { getPlaceCitiesList } from './src/utils/categories';
-import { shareProfile, openStay22 } from './src/utils/externalLinks';
+import {
+  shareProfile,
+  openStay22,
+  decodeSharedProfileFromUrl,
+} from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
 
 import { ProfileHeader } from './src/components/ProfileHeader';
@@ -28,11 +32,9 @@ import { EditProfileModal } from './src/components/EditProfileModal';
 
 export default function App() {
   const webViewRef = useRef(null);
-  const isReadOnlyWebViewer =
-    typeof window !== 'undefined' &&
-    window.location &&
-    (window.location.search.includes('public=1') ||
-      window.location.pathname.startsWith('/u/'));
+  const sharedUrlState = decodeSharedProfileFromUrl();
+  const isReadOnlyWebViewer = Boolean(sharedUrlState?.isPublicViewer);
+  const sharedProfileData = sharedUrlState?.sharedData || null;
 
   const [activeTab, setActiveTab] = useState(
     isReadOnlyWebViewer ? 'public' : 'map'
@@ -76,7 +78,7 @@ export default function App() {
   const [foodDrinks, setFoodDrinks] = useState([]);
   const [pendingCoords, setPendingCoords] = useState(null);
 
-  // Profile Picture Picker
+  // Profile Picture Picker (stores base64 data URI so the photo never expires from cache)
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -91,11 +93,17 @@ export default function App() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.5,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setProfilePhoto(result.assets[0].uri);
+      const asset = result.assets[0];
+      if (asset.base64) {
+        setProfilePhoto(`data:image/jpeg;base64,${asset.base64}`);
+      } else if (asset.uri) {
+        setProfilePhoto(asset.uri);
+      }
     }
   };
 
@@ -103,12 +111,8 @@ export default function App() {
   const handleShareProfile = () =>
     shareProfile({
       displayName,
+      homeLocation,
       visitedPlaces,
-      youtubeUrl,
-      instagramUser,
-      tiktokUser,
-      customLinkUrl,
-      customLinkLabel,
     });
 
   // Open Check-in Modal for New Check-in
@@ -327,9 +331,25 @@ export default function App() {
       {activeTab === 'public' || isReadOnlyWebViewer ? (
         <PublicProfileView
           profilePhoto={profilePhoto}
-          displayName={displayName}
-          homeLocation={homeLocation}
-          visitedPlaces={visitedPlaces}
+          displayName={
+            sharedProfileData?.displayName || displayName
+          }
+          homeLocation={
+            sharedProfileData?.homeLocation || homeLocation
+          }
+          visitedPlaces={
+            sharedProfileData?.visitedPlaces || visitedPlaces
+          }
+          onPickImage={isReadOnlyWebViewer ? null : handlePickImage}
+          onShareProfile={isReadOnlyWebViewer ? null : handleShareProfile}
+          onStartCreateMap={
+            isReadOnlyWebViewer
+              ? null
+              : () => {
+                  setActiveTab('map');
+                  openNewCheckInModal();
+                }
+          }
         />
       ) : activeTab === 'map' ? (
         <MapViewContainer

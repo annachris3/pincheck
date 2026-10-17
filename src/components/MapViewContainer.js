@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { styles } from '../styles/styles';
 
 export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
   useEffect(() => {
-    if (webViewRef.current) {
+    if (Platform.OS === 'web') return;
+    if (webViewRef.current && webViewRef.current.postMessage) {
       webViewRef.current.postMessage(
         JSON.stringify({
           type: 'SET_MARKERS',
@@ -14,6 +15,17 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
       );
     }
   }, [visitedPlaces, webViewRef]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const handleWindowMessage = (event) => {
+      if (typeof event.data === 'string' && onMapMessage) {
+        onMapMessage({ nativeEvent: { data: event.data } });
+      }
+    };
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
+  }, [onMapMessage]);
 
   const mapHtml = `
     <!DOCTYPE html>
@@ -64,6 +76,15 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
       <body>
         <div id="map"></div>
         <script>
+          function sendToHost(payload) {
+            const msg = JSON.stringify(payload);
+            if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+              window.ReactNativeWebView.postMessage(msg);
+            } else if (window.parent) {
+              window.parent.postMessage(msg, '*');
+            }
+          }
+
           const map = L.map('map', { 
             zoomControl: false,
             zoomAnimation: true,
@@ -112,11 +133,11 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
                   const cityMarker = L.marker([cLat, cLng], { icon: cityIcon }).addTo(markersLayer);
                   cityMarker.on('click', function() {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                    sendToHost({
                       type: 'MARKER_CLICK',
                       placeId: p.id,
                       spotName: null
-                    }));
+                    });
                   });
                 }
               });
@@ -137,11 +158,11 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
                 const spotMarker = L.marker([lat, lng], { icon: foodIcon }).addTo(markersLayer);
                 spotMarker.on('click', function() {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                  sendToHost({
                     type: 'MARKER_CLICK',
                     placeId: p.id,
                     spotName: name
-                  }));
+                  });
                 });
               });
             });
@@ -150,9 +171,9 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
           renderMarkers(${JSON.stringify(visitedPlaces)});
 
           map.on('click', function(e) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+            sendToHost({
               type: 'MAP_CLICK', lat: e.latlng.lat, lng: e.latlng.lng
-            }));
+            });
           });
 
           window.addEventListener('message', function(ev) {
@@ -171,6 +192,18 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
     </html>
   `;
 
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.bodyContainer}>
+        <iframe
+          title="PinCheck World Map"
+          srcDoc={mapHtml}
+          style={{ width: '100%', height: '100%', border: 'none', flex: 1 }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.bodyContainer}>
       <WebView
@@ -183,3 +216,4 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
     </View>
   );
 }
+
