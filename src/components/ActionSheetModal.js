@@ -54,7 +54,7 @@ export function ActionSheetModal({
         <View style={styles.actionSheetContent}>
           {selectedPlace && focusedSpot ? (
             /* FOCUSED VIEW: A specific Pinned 🍽️ Food & Drink Place */
-            <View>
+            <View style={{ paddingBottom: 18 }}>
               <View style={styles.sheetTopRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetTitle}>🍽️ {focusedSpot.name}</Text>
@@ -62,7 +62,10 @@ export function ActionSheetModal({
                     📍 {focusedSpot.address}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={onClose}>
+                <TouchableOpacity
+                  style={styles.closeSheetBtn}
+                  onPress={onClose}
+                >
                   <Text style={styles.closeSheetX}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -126,10 +129,11 @@ export function ActionSheetModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Back to full Country overview */}
+              {/* Prominent Back / Edit Button well above bottom system bar */}
               <TouchableOpacity
                 style={styles.editPlaceBtn}
                 onPress={() => onSelectSpotName(null)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.editPlaceBtnText}>
                   ← View all of {selectedPlace.country}
@@ -141,7 +145,8 @@ export function ActionSheetModal({
             selectedPlace && (
               <ScrollView
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: 520 }}
+                style={{ maxHeight: 540 }}
+                contentContainerStyle={{ paddingBottom: 20 }}
               >
                 <View style={styles.sheetTopRow}>
                   <View style={{ flex: 1 }}>
@@ -155,9 +160,24 @@ export function ActionSheetModal({
                       {beers.length} • 🍽️ {normalizedSpots.length}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={onClose}>
-                    <Text style={styles.closeSheetX}>✕</Text>
-                  </TouchableOpacity>
+
+                  {/* Easy-to-tap Edit Pill right at the top + Close X */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity
+                      style={styles.topEditBadgeBtn}
+                      onPress={() => onEditPlace(selectedPlace)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.topEditBadgeText}>✏️ Edit</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.closeSheetBtn}
+                      onPress={onClose}
+                    >
+                      <Text style={styles.closeSheetX}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Visited Cities in this Country */}
@@ -287,13 +307,14 @@ export function ActionSheetModal({
                   </View>
                 )}
 
-                {/* Secondary: Edit / Add More Cities, Beers, or Food & Drink */}
+                {/* Prominent Full-Width Edit Button with generous safe bottom spacing */}
                 <TouchableOpacity
                   style={styles.editPlaceBtn}
                   onPress={() => onEditPlace(selectedPlace)}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.editPlaceBtnText}>
-                    ✏️ Add More Cities, Beers, or Food & Drink
+                    ✏️ Edit or Add Cities / Beers / Spots
                   </Text>
                 </TouchableOpacity>
               </ScrollView>

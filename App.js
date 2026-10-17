@@ -332,6 +332,7 @@ export default function App() {
             setSelectedSpotName(spotName);
             setActionSheetVisible(true);
           }}
+          onEditPlace={openEditModal}
         />
       )}
 

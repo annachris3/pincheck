@@ -7,7 +7,12 @@ import {
   getUniqueCitiesCount,
 } from '../utils/categories';
 
-export function TimelineView({ visitedPlaces, onSelectPlace, onSelectFoodSpot }) {
+export function TimelineView({
+  visitedPlaces,
+  onSelectPlace,
+  onSelectFoodSpot,
+  onEditPlace,
+}) {
   const groupedByYear = visitedPlaces.reduce((acc, place) => {
     const y = place.year || 'Other';
     if (!acc[y]) acc[y] = [];
@@ -57,7 +62,16 @@ export function TimelineView({ visitedPlaces, onSelectPlace, onSelectFoodSpot })
                         <Text style={styles.cardTitle}>
                           🌍 {item.country}
                         </Text>
-                        <Text style={styles.cardMonth}>{item.month}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={styles.cardMonth}>{item.month}</Text>
+                          <TouchableOpacity
+                            style={styles.cardEditPill}
+                            onPress={() => onEditPlace(item)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.cardEditPillText}>✏️ Edit</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       {/* Visited Cities inside this Country */}
