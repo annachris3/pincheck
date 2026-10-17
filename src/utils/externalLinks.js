@@ -1,5 +1,10 @@
 import { Alert, Linking, Share } from 'react-native';
-import { getTotalBeersCount, getTotalFoodDrinksCount } from './categories';
+import {
+  getUniqueCountriesCount,
+  getUniqueCitiesCount,
+  getTotalBeersCount,
+  getTotalFoodDrinksCount,
+} from './categories';
 
 // Safe Social Opener
 export const openSocial = (url) => {
@@ -69,12 +74,8 @@ export const shareProfile = async ({
   customLinkLabel,
 }) => {
   try {
-    const countriesCount = new Set(
-      visitedPlaces.map((p) => (p.country || '').trim().toLowerCase()).filter(Boolean)
-    ).size;
-    const citiesCount = new Set(
-      visitedPlaces.map((p) => (p.city || '').trim().toLowerCase()).filter(Boolean)
-    ).size;
+    const countriesCount = getUniqueCountriesCount(visitedPlaces);
+    const citiesCount = getUniqueCitiesCount(visitedPlaces);
     const beersCount = getTotalBeersCount(visitedPlaces);
     const foodDrinksCount = getTotalFoodDrinksCount(visitedPlaces);
 
@@ -92,7 +93,7 @@ export const shareProfile = async ({
       message:
         `✈️ Travel Log • PinCheck\n\n` +
         `🌍 ${countriesCount} Countries | 🏙️ ${citiesCount} Cities\n` +
-        `📍 ${visitedPlaces.length} City Check-ins\n` +
+        `📍 ${visitedPlaces.length} Check-ins\n` +
         `🍺 ${beersCount} Local Beers Tasted\n` +
         `🍽️ ${foodDrinksCount} Food & Drink Spots` +
         (linksList ? `\n\nFollow my journey:\n${linksList}` : '') +

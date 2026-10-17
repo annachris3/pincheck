@@ -5,52 +5,72 @@ import {
   STORAGE_PROFILE_KEY,
   INITIAL_PLACES,
 } from '../constants/defaultPlaces';
+import { getPlaceCitiesList } from '../utils/categories';
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
-// Future-proof normalizer: preserves all unknown/future fields (ratings, photos, etc.)
-// and guarantees beers[] and foodDrinks[] arrays exist without losing past pins.
+// Future-proof normalizer: supports multiple cities per country check-in (`cities: [{ name, lat, lng }]`)
+// while preserving all existing pins, beers, and foodDrinks.
 export const normalizeStoredPlaces = (rawList) => {
   if (!Array.isArray(rawList)) return INITIAL_PLACES;
   if (rawList.length === 0) return [];
 
-  const isNewFormat = rawList.every(
+  const isMultiCityFormat = rawList.every(
     (item) =>
       item &&
       typeof item === 'object' &&
-      (Array.isArray(item.beers) || Array.isArray(item.foodDrinks))
+      (Array.isArray(item.beers) ||
+        Array.isArray(item.foodDrinks) ||
+        Array.isArray(item.cities))
   );
 
-  if (isNewFormat) {
-    return rawList.map((item, idx) => ({
-      ...item, // Preserve any future fields (photos, ratings, tags, etc.)
-      id: item.id || `${Date.now()}-${idx}`,
-      city: (item.city || 'Unknown').trim(),
-      country: (item.country || 'Global').trim(),
-      year: item.year || '2026',
-      month: item.month || 'May',
-      lat: typeof item.lat === 'number' ? item.lat : 48.2082,
-      lng: typeof item.lng === 'number' ? item.lng : 16.3738,
-      beers: Array.isArray(item.beers) ? item.beers : [],
-      foodDrinks: Array.isArray(item.foodDrinks) ? item.foodDrinks : [],
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-    }));
+  if (isMultiCityFormat) {
+    return rawList.map((item, idx) => {
+      const cities = getPlaceCitiesList(item);
+      const primaryCity = cities[0] || {
+        name: item.city || 'Unknown',
+        lat: typeof item.lat === 'number' ? item.lat : 48.2082,
+        lng: typeof item.lng === 'number' ? item.lng : 16.3738,
+      };
+
+      return {
+        ...item,
+        id: item.id || `${Date.now()}-${idx}`,
+        country: (item.country || 'Global').trim(),
+        city: primaryCity.name,
+        cities,
+        year: item.year || '2026',
+        month: item.month || 'May',
+        lat: primaryCity.lat,
+        lng: primaryCity.lng,
+        beers: Array.isArray(item.beers) ? item.beers : [],
+        foodDrinks: Array.isArray(item.foodDrinks) ? item.foodDrinks : [],
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      };
+    });
   }
 
-  // Migrate legacy v1 flat entries by grouping by city + country while preserving metadata
+  // Migrate legacy v1 flat entries by grouping by country + year
   const grouped = {};
   rawList.forEach((p, idx) => {
     if (!p || typeof p !== 'object') return;
     const city = (p.city || 'Unknown').trim();
     const country = (p.country || 'Global').trim();
-    const key = `${city.toLowerCase()}_${country.toLowerCase()}`;
+    const key = country.toLowerCase();
 
     if (!grouped[key]) {
       grouped[key] = {
         ...p,
         id: p.id || `${Date.now()}-${idx}`,
-        city,
         country,
+        city,
+        cities: [
+          {
+            name: city,
+            lat: typeof p.lat === 'number' ? p.lat : 48.2082,
+            lng: typeof p.lng === 'number' ? p.lng : 16.3738,
+          },
+        ],
         year: p.year || '2026',
         month: p.month || 'May',
         lat: typeof p.lat === 'number' ? p.lat : 48.2082,
@@ -59,6 +79,17 @@ export const normalizeStoredPlaces = (rawList) => {
         foodDrinks: [],
         schemaVersion: CURRENT_SCHEMA_VERSION,
       };
+    } else {
+      const exists = grouped[key].cities.some(
+        (c) => c.name.toLowerCase() === city.toLowerCase()
+      );
+      if (!exists) {
+        grouped[key].cities.push({
+          name: city,
+          lat: typeof p.lat === 'number' ? p.lat : grouped[key].lat,
+          lng: typeof p.lng === 'number' ? p.lng : grouped[key].lng,
+        });
+      }
     }
 
     const itemName = (p.title || '').trim();
@@ -72,9 +103,13 @@ export const normalizeStoredPlaces = (rawList) => {
         p.category === 'food' ||
         p.category === 'cafe'
       ) {
-        if (!grouped[key].foodDrinks.includes(itemName)) {
-          grouped[key].foodDrinks.push(itemName);
-        }
+        grouped[key].foodDrinks.push({
+          name: itemName,
+          city,
+          address: `${city}, ${country}`,
+          lat: typeof p.lat === 'number' ? p.lat : null,
+          lng: typeof p.lng === 'number' ? p.lng : null,
+        });
       }
     }
   });
@@ -97,7 +132,7 @@ export function usePinCheckData() {
   const [customLinkUrl, setCustomLinkUrl] = useState('');
   const [customLinkLabel, setCustomLinkLabel] = useState('My Link');
 
-  // Visited city check-ins with nested beers[] and foodDrinks[]
+  // Visited country/city check-ins with nested cities[], beers[], and foodDrinks[]
   const [visitedPlaces, setVisitedPlaces] = useState(INITIAL_PLACES);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
@@ -108,7 +143,6 @@ export function usePinCheckData() {
         const storedPlaces = await AsyncStorage.getItem(STORAGE_PLACES_KEY);
         if (storedPlaces !== null) {
           const parsed = JSON.parse(storedPlaces);
-          // Support both raw array or versioned envelope { version, places }
           const placesArray = Array.isArray(parsed)
             ? parsed
             : parsed && Array.isArray(parsed.places)

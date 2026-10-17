@@ -2,7 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { styles } from '../styles/styles';
 import { openSocial } from '../utils/externalLinks';
-import { getTotalBeersCount, getTotalFoodDrinksCount } from '../utils/categories';
+import {
+  getUniqueCountriesCount,
+  getUniqueCitiesCount,
+  getTotalBeersCount,
+  getTotalFoodDrinksCount,
+} from '../utils/categories';
 
 export function ProfileHeader({
   profilePhoto,
@@ -20,15 +25,11 @@ export function ProfileHeader({
   onOpenProfileModal,
   onShareProfile,
 }) {
-  // Derived Macro Stats
-  const uniqueCountries = new Set(
-    visitedPlaces.map((p) => (p.country || '').trim().toLowerCase()).filter(Boolean)
-  ).size;
-  const uniqueCities = new Set(
-    visitedPlaces.map((p) => (p.city || '').trim().toLowerCase()).filter(Boolean)
-  ).size;
+  // Derived Macro Stats (counts all unique countries and all unique cities across multi-city entries)
+  const uniqueCountries = getUniqueCountriesCount(visitedPlaces);
+  const uniqueCities = getUniqueCitiesCount(visitedPlaces);
 
-  // Subcategory Totals across all city check-ins
+  // Subcategory Totals
   const beerCount = getTotalBeersCount(visitedPlaces);
   const foodDrinkCount = getTotalFoodDrinksCount(visitedPlaces);
 

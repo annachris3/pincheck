@@ -82,7 +82,6 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
               const spots = Array.isArray(p.foodDrinks) ? p.foodDrinks : [];
               const hasFood = spots.length > 0;
 
-              // Build the emoji badge for the city marker so chosen emojis (📍, 🍺, 🍽️) are always visible!
               let cityEmojis = '📍';
               if (hasBeers && hasFood) {
                 cityEmojis = '📍🍺🍽️';
@@ -94,24 +93,35 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
               const badgeWidth = cityEmojis.length > 2 ? 54 : 34;
 
-              // 1. Main City Pin showing the chosen category emojis
-              const cityIcon = L.divIcon({
-                html: "<div class='custom-emoji-marker'>" + cityEmojis + "</div>",
-                className: '',
-                iconSize: [badgeWidth, 32],
-                iconAnchor: [badgeWidth / 2, 16]
+              // 1. Render a pin for EVERY city inside this Country check-in
+              const citiesList = Array.isArray(p.cities) && p.cities.length > 0
+                ? p.cities
+                : [{ name: p.city, lat: p.lat, lng: p.lng }];
+
+              citiesList.forEach(c => {
+                const cLat = (typeof c === 'object' && typeof c.lat === 'number') ? c.lat : p.lat;
+                const cLng = (typeof c === 'object' && typeof c.lng === 'number') ? c.lng : p.lng;
+
+                if (typeof cLat === 'number' && typeof cLng === 'number') {
+                  const cityIcon = L.divIcon({
+                    html: "<div class='custom-emoji-marker'>" + cityEmojis + "</div>",
+                    className: '',
+                    iconSize: [badgeWidth, 32],
+                    iconAnchor: [badgeWidth / 2, 16]
+                  });
+
+                  const cityMarker = L.marker([cLat, cLng], { icon: cityIcon }).addTo(markersLayer);
+                  cityMarker.on('click', function() {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'MARKER_CLICK',
+                      placeId: p.id,
+                      spotName: null
+                    }));
+                  });
+                }
               });
 
-              const cityMarker = L.marker([p.lat, p.lng], { icon: cityIcon }).addTo(markersLayer);
-              cityMarker.on('click', function() {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'MARKER_CLICK',
-                  placeId: p.id,
-                  spotName: null
-                }));
-              });
-
-              // 2. Exact Pinned 🍽️ Food & Drink places inside this City
+              // 2. Exact Pinned 🍽️ Food & Drink places inside this Country/City
               spots.forEach((spot, idx) => {
                 const name = typeof spot === 'string' ? spot : spot.name;
                 const angle = (idx + 1) * (Math.PI / 3);

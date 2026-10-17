@@ -10,10 +10,11 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 
 import {
-   usePinCheckData,
+  usePinCheckData,
   normalizeStoredPlaces,
 } from './src/hooks/usePinCheckData';
 import { fetchCoordinates } from './src/utils/geocoding';
+import { getPlaceCitiesList } from './src/utils/categories';
 import { shareProfile } from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
 
@@ -56,10 +57,10 @@ export default function App() {
   const [selectedSpotName, setSelectedSpotName] = useState(null);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
 
-  // City Check-in Form State (Country + City + complementary Beers & Food/Drink inside the city)
+  // Country & Multi-City Check-in Form State
   const [editingPinId, setEditingPinId] = useState(null);
-  const [cityName, setCityName] = useState('');
   const [countryName, setCountryName] = useState('');
+  const [cities, setCities] = useState([]);
   const [year, setYear] = useState('2026');
   const [month, setMonth] = useState('May');
   const [beers, setBeers] = useState([]);
@@ -101,11 +102,11 @@ export default function App() {
       customLinkLabel,
     });
 
-  // Open Check-in Modal for New City Pin
+  // Open Check-in Modal for New Check-in
   const openNewCheckInModal = (coords = null) => {
     setEditingPinId(null);
-    setCityName('');
     setCountryName('');
+    setCities([]);
     setYear('2026');
     setMonth('May');
     setBeers([]);
@@ -114,22 +115,22 @@ export default function App() {
     setModalVisible(true);
   };
 
-  // Open Modal to Edit existing City Check-in (or add more beers / food & drink spots)
+  // Open Modal to Edit existing Country Check-in (add/edit cities, beers, or food & drink spots)
   const openEditModal = (place) => {
     setActionSheetVisible(false);
     setSelectedSpotName(null);
     setEditingPinId(place.id);
-    setCityName(place.city || '');
     setCountryName(place.country || '');
+    setCities(getPlaceCitiesList(place));
     setYear(place.year || '2026');
     setMonth(place.month || 'May');
     setBeers(Array.isArray(place.beers) ? place.beers : []);
     setFoodDrinks(Array.isArray(place.foodDrinks) ? place.foodDrinks : []);
-    setPendingCoords({ lat: place.lat, lng: place.lng });
+    setPendingCoords(null);
     setModalVisible(true);
   };
 
-  // Delete City Pin
+  // Delete Check-in
   const handleDeletePin = () => {
     if (!editingPinId) return;
     const updated = visitedPlaces.filter((p) => p.id !== editingPinId);
@@ -146,31 +147,84 @@ export default function App() {
     setModalVisible(false);
   };
 
-  // Save or Update City Check-in
-  const handleSavePin = async (finalBeers = beers, finalFoodDrinks = foodDrinks) => {
-    if (!cityName.trim() || !countryName.trim()) {
+  // Save or Update Country Check-in & Re-Geocode Any Changed or New Cities!
+  const handleSavePin = async (
+    finalCities = cities,
+    finalBeers = beers,
+    finalFoodDrinks = foodDrinks
+  ) => {
+    if (!countryName.trim() || finalCities.length === 0) {
       Alert.alert(
         'Missing Destination',
-        'Please enter both the Country and City for your check-in.'
+        'Please enter the Country and add at least one City.'
       );
       return;
     }
 
-    let coords = pendingCoords;
-    if (!coords) {
-      setIsSearchingLocation(true);
-      const query = `${cityName.trim()}, ${countryName.trim()}`;
-      coords = await fetchCoordinates(query);
-      setIsSearchingLocation(false);
+    setIsSearchingLocation(true);
 
-      if (!coords) {
-        Alert.alert(
-          'Location Not Found',
-          'Could not find coordinates for this city. Please check the spelling.'
+    // Ensure every city in finalCities has fresh coordinates for its current name!
+    const existingPlace = editingPinId
+      ? visitedPlaces.find((p) => p.id === editingPinId)
+      : null;
+    const existingCities = existingPlace ? getPlaceCitiesList(existingPlace) : [];
+
+    const resolvedCities = [];
+    for (let i = 0; i < finalCities.length; i++) {
+      const c = finalCities[i];
+      const cName = (typeof c === 'string' ? c : c.name || '').trim();
+      if (!cName) continue;
+
+      // Check if an existing city had the exact same name & valid coordinates
+      const prevMatch = existingCities.find(
+        (prev) => prev.name.trim().toLowerCase() === cName.toLowerCase()
+      );
+
+      let cLat = typeof c === 'object' && typeof c.lat === 'number' ? c.lat : null;
+      let cLng = typeof c === 'object' && typeof c.lng === 'number' ? c.lng : null;
+
+      // If the city is new or its name changed, fetch fresh coordinates from OpenStreetMap!
+      if (!prevMatch || cLat === null || cLng === null) {
+        const fetched = await fetchCoordinates(
+          `${cName}, ${countryName.trim()}`
         );
-        return;
+        if (fetched) {
+          cLat = fetched.lat;
+          cLng = fetched.lng;
+        }
       }
+
+      if (cLat === null || cLng === null) {
+        if (pendingCoords) {
+          cLat = pendingCoords.lat;
+          cLng = pendingCoords.lng;
+        } else {
+          // Fallback to country coordinates
+          const countryCoords = await fetchCoordinates(countryName.trim());
+          cLat = countryCoords ? countryCoords.lat : 48.2082;
+          cLng = countryCoords ? countryCoords.lng : 16.3738;
+        }
+      }
+
+      resolvedCities.push({
+        name: cName,
+        lat: cLat,
+        lng: cLng,
+      });
     }
+
+    setIsSearchingLocation(false);
+
+    if (resolvedCities.length === 0) {
+      Alert.alert(
+        'Location Not Found',
+        'Could not find coordinates for the entered city. Please check the spelling.'
+      );
+      return;
+    }
+
+    const latestCity = resolvedCities[resolvedCities.length - 1];
+    const primaryCity = resolvedCities[0];
 
     let updatedList;
     if (editingPinId) {
@@ -178,28 +232,30 @@ export default function App() {
         p.id === editingPinId
           ? {
               ...p,
-              city: cityName.trim(),
               country: countryName.trim(),
+              city: primaryCity.name,
+              cities: resolvedCities,
               year: year.trim() || '2026',
               month: month.trim() || 'May',
               beers: finalBeers,
               foodDrinks: finalFoodDrinks,
-              lat: coords.lat,
-              lng: coords.lng,
+              lat: primaryCity.lat,
+              lng: primaryCity.lng,
             }
           : p
       );
     } else {
       const newPlace = {
         id: Date.now().toString(),
-        city: cityName.trim(),
         country: countryName.trim(),
+        city: primaryCity.name,
+        cities: resolvedCities,
         year: year.trim() || '2026',
         month: month.trim() || 'May',
         beers: finalBeers,
         foodDrinks: finalFoodDrinks,
-        lat: coords.lat,
-        lng: coords.lng,
+        lat: primaryCity.lat,
+        lng: primaryCity.lng,
       };
       updatedList = [newPlace, ...visitedPlaces];
     }
@@ -211,7 +267,7 @@ export default function App() {
         JSON.stringify({
           type: 'SET_MARKERS',
           places: updatedList,
-          flyTo: [coords.lat, coords.lng],
+          flyTo: [latestCity.lat, latestCity.lng],
         })
       );
     }
@@ -295,7 +351,7 @@ export default function App() {
         <Text style={styles.fabText}>+ Check-in</Text>
       </TouchableOpacity>
 
-      {/* MODAL: Place Action Sheet (Beers list + Food & Drink spots with Google Maps / Uber / Bolt) */}
+      {/* MODAL: Place Action Sheet (Cities + Beers by Country + Food & Drink spots with Google Maps / Uber / Bolt) */}
       <ActionSheetModal
         visible={actionSheetVisible}
         selectedPlace={selectedPlace}
@@ -308,14 +364,14 @@ export default function App() {
         onEditPlace={openEditModal}
       />
 
-      {/* MODAL: City Check-in Form */}
+      {/* MODAL: Check-in Form */}
       <CheckInModal
         visible={modalVisible}
         editingPinId={editingPinId}
-        cityName={cityName}
-        setCityName={setCityName}
         countryName={countryName}
         setCountryName={setCountryName}
+        cities={cities}
+        setCities={setCities}
         year={year}
         setYear={setYear}
         month={month}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { styles } from '../styles/styles';
 import { openInGoogleMaps, openUber, openBolt } from '../utils/externalLinks';
+import { getPlaceCitiesList } from '../utils/categories';
 
 export function ActionSheetModal({
   visible,
@@ -11,6 +12,7 @@ export function ActionSheetModal({
   onClose,
   onEditPlace,
 }) {
+  const citiesList = selectedPlace ? getPlaceCitiesList(selectedPlace) : [];
   const beers = Array.isArray(selectedPlace?.beers) ? selectedPlace.beers : [];
   const rawFoodDrinks = Array.isArray(selectedPlace?.foodDrinks)
     ? selectedPlace.foodDrinks
@@ -20,15 +22,17 @@ export function ActionSheetModal({
     typeof s === 'string'
       ? {
           name: s,
+          city: selectedPlace?.city || '',
           address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
           lat: selectedPlace?.lat,
           lng: selectedPlace?.lng,
         }
       : {
           name: s.name,
+          city: s.city || selectedPlace?.city || '',
           address:
             s.address ||
-            `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
+            `${s.city || selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
           lat: typeof s.lat === 'number' ? s.lat : selectedPlace?.lat,
           lng: typeof s.lng === 'number' ? s.lng : selectedPlace?.lng,
         }
@@ -37,6 +41,7 @@ export function ActionSheetModal({
   const focusedSpot = selectedSpotName
     ? normalizedSpots.find((s) => s.name === selectedSpotName) || {
         name: selectedSpotName,
+        city: selectedPlace?.city || '',
         address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
         lat: selectedPlace?.lat,
         lng: selectedPlace?.lng,
@@ -48,7 +53,7 @@ export function ActionSheetModal({
       <View style={styles.actionSheetOverlay}>
         <View style={styles.actionSheetContent}>
           {selectedPlace && focusedSpot ? (
-            /* FOCUSED VIEW: A specific Pinned 🍽️ Food & Drink Place inside the City */
+            /* FOCUSED VIEW: A specific Pinned 🍽️ Food & Drink Place */
             <View>
               <View style={styles.sheetTopRow}>
                 <View style={{ flex: 1 }}>
@@ -65,7 +70,15 @@ export function ActionSheetModal({
               {/* Primary Action: Google Maps for this Food & Drink place */}
               <TouchableOpacity
                 style={styles.actionButtonGoogleMaps}
-                onPress={() => openInGoogleMaps(selectedPlace, focusedSpot.name)}
+                onPress={() =>
+                  openInGoogleMaps(
+                    {
+                      ...selectedPlace,
+                      city: focusedSpot.city || selectedPlace.city,
+                    },
+                    focusedSpot.name
+                  )
+                }
               >
                 <Text style={styles.actionButtonGoogleMapsText}>
                   🗺️ Open in Google Maps
@@ -83,6 +96,7 @@ export function ActionSheetModal({
                     openUber(
                       {
                         ...selectedPlace,
+                        city: focusedSpot.city || selectedPlace.city,
                         lat: focusedSpot.lat,
                         lng: focusedSpot.lng,
                       },
@@ -112,18 +126,18 @@ export function ActionSheetModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Back to full City overview */}
+              {/* Back to full Country overview */}
               <TouchableOpacity
                 style={styles.editPlaceBtn}
                 onPress={() => onSelectSpotName(null)}
               >
                 <Text style={styles.editPlaceBtnText}>
-                  ← View all of {selectedPlace.city}
+                  ← View all of {selectedPlace.country}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
-            /* CITY OVERVIEW: Shows Beers (by Country) + Pinned Food & Drink places */
+            /* COUNTRY OVERVIEW: Shows Visited Cities + Beers (by Country) + Pinned Food & Drink places */
             selectedPlace && (
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -132,19 +146,44 @@ export function ActionSheetModal({
                 <View style={styles.sheetTopRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.sheetTitle}>
-                      📍 {selectedPlace.city}, {selectedPlace.country}
+                      🌍 {selectedPlace.country}
                     </Text>
                     <Text style={styles.sheetSubtitle}>
-                      {selectedPlace.month} {selectedPlace.year}
-                      {beers.length === 0 && normalizedSpots.length === 0
-                        ? ' • Just Visited'
-                        : ` • 🍺 ${beers.length} • 🍽️ ${normalizedSpots.length}`}
+                      {selectedPlace.month} {selectedPlace.year} • 🏙️{' '}
+                      {citiesList.length}{' '}
+                      {citiesList.length === 1 ? 'City' : 'Cities'} • 🍺{' '}
+                      {beers.length} • 🍽️ {normalizedSpots.length}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={onClose}>
                     <Text style={styles.closeSheetX}>✕</Text>
                   </TouchableOpacity>
                 </View>
+
+                {/* Visited Cities in this Country */}
+                {citiesList.length > 0 && (
+                  <View style={styles.sheetSectionBox}>
+                    <Text style={styles.sheetSectionTitle}>
+                      🏙️ Cities Visited in {selectedPlace.country}
+                    </Text>
+                    <View style={styles.subChipsWrap}>
+                      {citiesList.map((c, idx) => (
+                        <TouchableOpacity
+                          key={`sheet-city-${idx}`}
+                          style={styles.addedItemChip}
+                          onPress={() =>
+                            openInGoogleMaps({
+                              city: c.name,
+                              country: selectedPlace.country,
+                            })
+                          }
+                        >
+                          <Text style={styles.subChipText}>📍 {c.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
 
                 {/* Subcategory 1: Local Beers Tasted in Country (e.g. "🍺 Stiegl tasted in Austria") */}
                 {beers.length > 0 && (
@@ -168,7 +207,7 @@ export function ActionSheetModal({
                 {normalizedSpots.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
-                      🍽️ Pinned Food & Drink Places in {selectedPlace.city}
+                      🍽️ Pinned Food & Drink Places in {selectedPlace.country}
                     </Text>
                     {normalizedSpots.map((spot, idx) => (
                       <View key={`sheet-fd-${idx}`} style={styles.spotActionCard}>
@@ -187,7 +226,15 @@ export function ActionSheetModal({
 
                         <TouchableOpacity
                           style={styles.actionButtonGoogleMaps}
-                          onPress={() => openInGoogleMaps(selectedPlace, spot.name)}
+                          onPress={() =>
+                            openInGoogleMaps(
+                              {
+                                ...selectedPlace,
+                                city: spot.city || selectedPlace.city,
+                              },
+                              spot.name
+                            )
+                          }
                         >
                           <Text style={styles.actionButtonGoogleMapsText}>
                             🗺️ Open in Google Maps
@@ -204,6 +251,7 @@ export function ActionSheetModal({
                               openUber(
                                 {
                                   ...selectedPlace,
+                                  city: spot.city || selectedPlace.city,
                                   lat: spot.lat,
                                   lng: spot.lng,
                                 },
@@ -239,13 +287,13 @@ export function ActionSheetModal({
                   </View>
                 )}
 
-                {/* Secondary: Edit / Add Beers or Food & Drink / Delete */}
+                {/* Secondary: Edit / Add More Cities, Beers, or Food & Drink */}
                 <TouchableOpacity
                   style={styles.editPlaceBtn}
                   onPress={() => onEditPlace(selectedPlace)}
                 >
                   <Text style={styles.editPlaceBtnText}>
-                    ✏️ Add Beers / Food & Drink or Edit Check-in
+                    ✏️ Add More Cities, Beers, or Food & Drink
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
