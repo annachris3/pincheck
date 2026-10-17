@@ -9,8 +9,7 @@ import {
 import { getPlaceCitiesList } from '../utils/categories';
 
 const CURRENT_SCHEMA_VERSION = 3;
-export const CLOUD_PROFILE_URL =
-  'https://api.restful-api.dev/objects/ff808181a09d98f701a149b887607f2c';
+export const CLOUD_SYNC_TOPIC_URL = 'https://ntfy.sh/pincheckin_anna_sync_v2';
 
 const GUEST_PLACES_KEY = '@pincheck_guest_places_v1';
 const GUEST_PROFILE_KEY = '@pincheck_guest_profile_v1';
@@ -40,21 +39,48 @@ const convertFileUriToDataUrl = async (uri) => {
 export const syncPublicProfileToCloud = async (profilePayload) => {
   if (Platform.OS === 'web') return;
   try {
-    await fetch(CLOUD_PROFILE_URL, {
-      method: 'PUT',
+    await fetch(CLOUD_SYNC_TOPIC_URL, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        Filename: 'profile.json',
       },
       body: JSON.stringify({
-        name: 'pincheckin-profile',
-        data: {
-          ...profilePayload,
-          updatedAt: new Date().toISOString(),
-        },
+        ...profilePayload,
+        updatedAt: new Date().toISOString(),
       }),
     });
   } catch (e) {
     console.log('Cloud sync skipped:', e);
+  }
+};
+
+// Fetch latest synced owner profile + photo + pins on web
+const fetchPublicProfileFromCloud = async () => {
+  try {
+    const response = await fetch(
+      `${CLOUD_SYNC_TOPIC_URL}/json?poll=1&since=all`
+    );
+    if (!response.ok) return null;
+    const text = await response.text();
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return null;
+
+    const latestEvent = JSON.parse(lines[lines.length - 1]);
+    if (latestEvent?.attachment?.url) {
+      const fileRes = await fetch(latestEvent.attachment.url);
+      if (fileRes.ok) {
+        return await fileRes.json();
+      }
+    }
+    if (latestEvent?.message) {
+      return JSON.parse(latestEvent.message);
+    }
+    return null;
+  } catch {
+    return null;
   }
 };
 
@@ -217,22 +243,18 @@ export function usePinCheckData() {
         // WEB PUBLIC VIEWER: Fetch the owner's live shared profile (photo, name, pins) from cloud
         if (Platform.OS === 'web') {
           try {
-            const response = await fetch(CLOUD_PROFILE_URL);
-            if (response.ok) {
-              const json = await response.json();
-              const cloud = json?.data;
-              if (cloud) {
-                if (cloud.profilePhoto) setProfilePhoto(cloud.profilePhoto);
-                if (cloud.displayName) setDisplayName(cloud.displayName);
-                if (cloud.homeLocation) setHomeLocation(cloud.homeLocation);
-                if (cloud.youtubeUrl !== undefined) setYoutubeUrl(cloud.youtubeUrl);
-                if (cloud.instagramUser !== undefined) setInstagramUser(cloud.instagramUser);
-                if (cloud.tiktokUser !== undefined) setTiktokUser(cloud.tiktokUser);
-                if (cloud.customLinkUrl !== undefined) setCustomLinkUrl(cloud.customLinkUrl);
-                if (cloud.customLinkLabel) setCustomLinkLabel(cloud.customLinkLabel);
-                if (Array.isArray(cloud.visitedPlaces) && cloud.visitedPlaces.length > 0) {
-                  setVisitedPlaces(normalizeStoredPlaces(cloud.visitedPlaces));
-                }
+            const cloud = await fetchPublicProfileFromCloud();
+            if (cloud) {
+              if (cloud.profilePhoto) setProfilePhoto(cloud.profilePhoto);
+              if (cloud.displayName) setDisplayName(cloud.displayName);
+              if (cloud.homeLocation) setHomeLocation(cloud.homeLocation);
+              if (cloud.youtubeUrl !== undefined) setYoutubeUrl(cloud.youtubeUrl);
+              if (cloud.instagramUser !== undefined) setInstagramUser(cloud.instagramUser);
+              if (cloud.tiktokUser !== undefined) setTiktokUser(cloud.tiktokUser);
+              if (cloud.customLinkUrl !== undefined) setCustomLinkUrl(cloud.customLinkUrl);
+              if (cloud.customLinkLabel) setCustomLinkLabel(cloud.customLinkLabel);
+              if (Array.isArray(cloud.visitedPlaces) && cloud.visitedPlaces.length > 0) {
+                setVisitedPlaces(normalizeStoredPlaces(cloud.visitedPlaces));
               }
             }
           } catch (err) {
