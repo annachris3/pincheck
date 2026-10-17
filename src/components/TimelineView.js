@@ -68,11 +68,15 @@ export function TimelineView({ visitedPlaces, onSelectPlace, onSelectFoodSpot })
                         <View style={styles.subItemsContainer}>
                           {beers.length > 0 && (
                             <View style={styles.subItemGroup}>
-                              <Text style={styles.subItemGroupLabel}>🍺 Local Beers:</Text>
+                              <Text style={styles.subItemGroupLabel}>
+                                🍺 Local Beers ({item.country}):
+                              </Text>
                               <View style={styles.subChipsWrap}>
                                 {beers.map((beer, idx) => (
                                   <View key={`beer-${idx}`} style={styles.subChipBeer}>
-                                    <Text style={styles.subChipText}>🍺 {beer}</Text>
+                                    <Text style={styles.subChipText}>
+                                      🍺 {beer} tasted in {item.country}
+                                    </Text>
                                   </View>
                                 ))}
                               </View>

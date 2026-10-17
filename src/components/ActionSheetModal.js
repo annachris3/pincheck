@@ -123,7 +123,7 @@ export function ActionSheetModal({
               </TouchableOpacity>
             </View>
           ) : (
-            /* CITY OVERVIEW: Shows Beers (hobby list) + Pinned Food & Drink places with addresses */
+            /* CITY OVERVIEW: Shows Beers (by Country) + Pinned Food & Drink places */
             selectedPlace && (
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -146,16 +146,18 @@ export function ActionSheetModal({
                   </TouchableOpacity>
                 </View>
 
-                {/* Subcategory 1: Local Beers Tasted (just the name, no maps/rides) */}
+                {/* Subcategory 1: Local Beers Tasted in Country (e.g. "🍺 Stiegl tasted in Austria") */}
                 {beers.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
-                      🍺 Local Beers Tasted in {selectedPlace.city}
+                      🍺 Local Beers ({selectedPlace.country})
                     </Text>
                     <View style={styles.subChipsWrap}>
                       {beers.map((beer, idx) => (
                         <View key={`sheet-beer-${idx}`} style={styles.subChipBeer}>
-                          <Text style={styles.subChipText}>🍺 {beer}</Text>
+                          <Text style={styles.subChipText}>
+                            🍺 {beer} tasted in {selectedPlace.country}
+                          </Text>
                         </View>
                       ))}
                     </View>
