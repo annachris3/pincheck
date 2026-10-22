@@ -217,8 +217,7 @@ See my map & start your own collection: [Profile_URL]
 # Task: Star Ranking System & Progress Display
 
 ## Step 1: Define the Star Ranking Rules
-Evaluate the user's rank based on total confirmed destinations:
-* **0 Stars (`Rookie`):** Less than 1 country (or has not yet reached 1-Star thresholds).
+Evaluate the user's rank based on total confirmed destinations (starting with `⭐ Explorer`):
 * **⭐ 1 Star (`Explorer`):** Reached **1 to 4 Countries**, AND at least **5 Cities** (or **1 Island**).
 * **⭐⭐ 2 Stars (`Voyager`):** Reached **5 to 14 Countries**, AND at least **15 Cities** (or **3 Islands**).
 * **⭐⭐⭐ 3 Stars (`Globetrotter`):** Reached **15 to 29 Countries**, AND at least **35 Cities** (or **8 Islands**).
@@ -227,8 +226,8 @@ Evaluate the user's rank based on total confirmed destinations:
 
 ## Step 2: Implement the Evaluation Logic
 * Run `evaluateStarRanking(visitedPlaces)` (`src/utils/categories.js`) automatically whenever a user adds, edits, or deletes a destination or pin.
-* Check from highest to lowest: test if the user meets the **5-Star** criteria first; if not, check **4-Star**, down to **1-Star** (and **0-Star Rookie**).
-* Store the resulting `starLevel` (`0` to `5`), `starTitle`, `starGraphic`, and `starProgressHint` directly on the user profile record (`usePinCheckData.js`).
+* Check from highest to lowest: test if the user meets the **5-Star** criteria first; if not, check **4-Star**, down to **1-Star (`Explorer`)**.
+* Store the resulting `starLevel` (`1` to `5`), `starTitle`, `starGraphic`, and `starProgressHint` directly on the user profile record (`usePinCheckData.js`).
 
 ## Step 3: Profile, Timeline & Web Card Display
 * **Mobile App Profile Screen (`ProfileHeader.js`):**

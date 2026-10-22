@@ -1,9 +1,6 @@
 // Helper utilities for Country Check-ins, Cities, Islands, Local Beers, Food & Drink spots, and Star Ranking
 import { detectDestinationTypeSync } from './geocoding';
-import {
-  STAR_RANKING_TIERS,
-  ROOKIE_TIER,
-} from '../constants/starRankingConfig';
+import { STAR_RANKING_TIERS } from '../constants/starRankingConfig';
 
 const MONTH_ORDER = {
   jan: 1,
@@ -185,27 +182,26 @@ export const getTotalPinsCount = (visitedPlaces) =>
 
 /**
  * Evaluate the user's Star Ranking based on total confirmed destinations.
- * Checks from highest to lowest (5-Star -> 4-Star -> 3-Star -> 2-Star -> 1-Star -> 0-Star Rookie).
+ * Checks from highest to lowest (5-Star -> 4-Star -> 3-Star -> 2-Star -> 1-Star Explorer).
  */
 export const evaluateStarRanking = (visitedPlaces = []) => {
   const countriesCount = getUniqueCountriesCount(visitedPlaces);
   const citiesCount = getUniqueCitiesCount(visitedPlaces);
   const islandsCount = getUniqueIslandsCount(visitedPlaces);
 
-  let currentTier = ROOKIE_TIER;
+  // Start with 1-Star Explorer as the base rank
+  let currentTier = STAR_RANKING_TIERS[STAR_RANKING_TIERS.length - 1];
 
-  if (countriesCount >= 1) {
-    // Check from highest to lowest (5 -> 4 -> 3 -> 2 -> 1)
-    for (let i = 0; i < STAR_RANKING_TIERS.length; i++) {
-      const tier = STAR_RANKING_TIERS[i];
-      const meetsCountries = countriesCount >= tier.minCountries;
-      const meetsCitiesOrIslands =
-        citiesCount >= tier.minCities || islandsCount >= tier.minIslands;
+  // Check from highest to lowest (5 -> 4 -> 3 -> 2 -> 1)
+  for (let i = 0; i < STAR_RANKING_TIERS.length; i++) {
+    const tier = STAR_RANKING_TIERS[i];
+    const meetsCountries = countriesCount >= tier.minCountries;
+    const meetsCitiesOrIslands =
+      citiesCount >= tier.minCities || islandsCount >= tier.minIslands;
 
-      if (meetsCountries && meetsCitiesOrIslands) {
-        currentTier = tier;
-        break;
-      }
+    if (meetsCountries && meetsCitiesOrIslands) {
+      currentTier = tier;
+      break;
     }
   }
 

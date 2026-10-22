@@ -53,13 +53,3 @@ export const STAR_RANKING_TIERS = [
     minIslands: 1,
   },
 ];
-
-export const ROOKIE_TIER = {
-  stars: 0,
-  starGraphic: '☆',
-  title: 'Rookie',
-  minCountries: 0,
-  maxCountries: 0,
-  minCities: 0,
-  minIslands: 0,
-};

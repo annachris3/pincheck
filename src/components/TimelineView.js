@@ -7,10 +7,7 @@ import {
   getDestinationEmoji,
   evaluateStarRanking,
 } from '../utils/categories';
-import {
-  STAR_RANKING_TIERS,
-  ROOKIE_TIER,
-} from '../constants/starRankingConfig';
+import { STAR_RANKING_TIERS } from '../constants/starRankingConfig';
 
 export function TimelineView({
   visitedPlaces,
@@ -19,7 +16,7 @@ export function TimelineView({
   readOnly = false,
 }) {
   const starRanking = evaluateStarRanking(visitedPlaces);
-  const allStarTiersAsc = [ROOKIE_TIER, ...[...STAR_RANKING_TIERS].reverse()];
+  const allStarTiersAsc = [...STAR_RANKING_TIERS].reverse();
 
   // Build unique country stamp badges
   const countryStamps = [];
@@ -202,12 +199,9 @@ export function TimelineView({
           >
             {allStarTiersAsc.map((tier) => {
               const isCurrent = tier.stars === starRanking.starLevel;
-              const ruleText =
-                tier.stars === 0
-                  ? 'Less than 1 country'
-                  : tier.maxCountries
-                  ? `${tier.minCountries}–${tier.maxCountries} Countries + ${tier.minCities} Cities (or ${tier.minIslands} ${tier.minIslands === 1 ? 'Island' : 'Islands'})`
-                  : `${tier.minCountries}+ Countries + ${tier.minCities} Cities (or ${tier.minIslands} Islands)`;
+              const ruleText = tier.maxCountries
+                ? `${tier.minCountries}–${tier.maxCountries} Countries + ${tier.minCities} Cities (or ${tier.minIslands} ${tier.minIslands === 1 ? 'Island' : 'Islands'})`
+                : `${tier.minCountries}+ Countries + ${tier.minCities} Cities (or ${tier.minIslands} Islands)`;
 
               return (
                 <View
