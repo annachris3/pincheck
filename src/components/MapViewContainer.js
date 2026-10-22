@@ -114,21 +114,31 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
               const badgeWidth = cityEmojis.length > 2 ? 54 : 34;
 
-              // 1. Render a pin for EVERY city inside this Country check-in
+              // 1. Render a pin for EVERY city or island inside this Country check-in
               const citiesList = Array.isArray(p.cities) && p.cities.length > 0
                 ? p.cities
-                : [{ name: p.city, lat: p.lat, lng: p.lng }];
+                : [{ name: p.city, lat: p.lat, lng: p.lng, type: 'city' }];
 
               citiesList.forEach(c => {
                 const cLat = (typeof c === 'object' && typeof c.lat === 'number') ? c.lat : p.lat;
                 const cLng = (typeof c === 'object' && typeof c.lng === 'number') ? c.lng : p.lng;
+                const basePinEmoji = (typeof c === 'object' && c.type === 'island') ? '🏝️' : '📍';
+                let markerEmojis = basePinEmoji;
+                if (hasBeers && hasFood) {
+                  markerEmojis = basePinEmoji + '🍺🍽️';
+                } else if (hasBeers) {
+                  markerEmojis = basePinEmoji + '🍺';
+                } else if (hasFood) {
+                  markerEmojis = basePinEmoji + '🍽️';
+                }
+                const markerWidth = markerEmojis.length > 2 ? 54 : 34;
 
                 if (typeof cLat === 'number' && typeof cLng === 'number') {
                   const cityIcon = L.divIcon({
-                    html: "<div class='custom-emoji-marker'>" + cityEmojis + "</div>",
+                    html: "<div class='custom-emoji-marker'>" + markerEmojis + "</div>",
                     className: '',
-                    iconSize: [badgeWidth, 32],
-                    iconAnchor: [badgeWidth / 2, 16]
+                    iconSize: [markerWidth, 32],
+                    iconAnchor: [markerWidth / 2, 16]
                   });
 
                   const cityMarker = L.marker([cLat, cLng], { icon: cityIcon }).addTo(markersLayer);

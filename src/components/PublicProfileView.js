@@ -11,12 +11,11 @@ import {
   getPlaceCitiesList,
   getUniqueCountriesCount,
   getUniqueCitiesCount,
-  getTotalPinsCount,
+  getUniqueIslandsCount,
 } from '../utils/categories';
 import {
   openStay22,
   openInGoogleMaps,
-  openCreatePinCheckMap,
   DEFAULT_TRAVELER_AVATAR,
 } from '../utils/externalLinks';
 
@@ -38,7 +37,7 @@ export function PublicProfileView({
 
   const countriesCount = getUniqueCountriesCount(visitedPlaces);
   const citiesCount = getUniqueCitiesCount(visitedPlaces);
-  const pinsCount = getTotalPinsCount(visitedPlaces);
+  const islandsCount = getUniqueIslandsCount(visitedPlaces);
 
   // Build unique country stamp badges
   const countryStamps = [];
@@ -66,12 +65,18 @@ export function PublicProfileView({
   visitedPlaces.forEach((place) => {
     const citiesList = getPlaceCitiesList(place);
     citiesList.forEach((cityObj, idx) => {
+      const badgeLabel =
+        cityObj.type === 'island'
+          ? '🏝️ Island'
+          : cityObj.type === 'country'
+          ? '🌍 Country'
+          : '🏙️ City';
       spotCards.push({
         key: `${place.id}-city-${idx}`,
         type: 'sight',
-        badge: '📍 Sight / City',
+        badge: badgeLabel,
         title: cityObj.name,
-        subtitle: `${place.country} • ${place.month || ''} ${place.year || ''}`.trim(),
+        subtitle: `${place.country} • ${cityObj.month || place.month || ''} ${cityObj.year || place.year || ''}`.trim(),
         placeRef: {
           ...place,
           city: cityObj.name,
@@ -189,21 +194,21 @@ export function PublicProfileView({
               </View>
             </View>
 
-            {/* Total Stats Grid: Countries · Cities · Pins */}
+            {/* Total Stats Grid: [X] Countries · [Y] Cities · [Z] Islands */}
             <View style={styles.publicStatsGrid}>
               <View style={styles.publicStatBox}>
                 <Text style={styles.publicStatNumber}>{countriesCount}</Text>
-                <Text style={styles.publicStatLabel}>Countries</Text>
+                <Text style={styles.publicStatLabel}>🌍 Countries</Text>
               </View>
               <View style={styles.publicStatDivider} />
               <View style={styles.publicStatBox}>
                 <Text style={styles.publicStatNumber}>{citiesCount}</Text>
-                <Text style={styles.publicStatLabel}>Cities</Text>
+                <Text style={styles.publicStatLabel}>🏙️ Cities</Text>
               </View>
               <View style={styles.publicStatDivider} />
               <View style={styles.publicStatBox}>
-                <Text style={styles.publicStatNumber}>{pinsCount}</Text>
-                <Text style={styles.publicStatLabel}>Pins</Text>
+                <Text style={styles.publicStatNumber}>{islandsCount}</Text>
+                <Text style={styles.publicStatLabel}>🏝️ Islands</Text>
               </View>
             </View>
           </View>
@@ -304,7 +309,11 @@ export function PublicProfileView({
       <View style={styles.stickyCtaContainer}>
         <TouchableOpacity
           style={styles.stickyCtaButton}
-          onPress={() => openCreatePinCheckMap(onStartCreateMap)}
+          onPress={() => {
+            if (typeof onStartCreateMap === 'function') {
+              onStartCreateMap();
+            }
+          }}
           activeOpacity={0.85}
         >
           <Text style={styles.stickyCtaButtonText}>

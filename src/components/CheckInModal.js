@@ -9,7 +9,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { styles } from '../styles/styles';
-import { fetchCoordinates, searchVenueInCity } from '../utils/geocoding';
+import {
+  fetchCoordinates,
+  searchVenueInCity,
+  detectDestinationTypeSync,
+} from '../utils/geocoding';
+import { getDestinationEmoji } from '../utils/categories';
 
 export function CheckInModal({
   visible,
@@ -34,6 +39,8 @@ export function CheckInModal({
   // Active tab inside the check-in: 'visit' | 'beer' | 'food'
   const [activeSubTab, setActiveSubTab] = useState('visit');
   const [cityInput, setCityInput] = useState('');
+  const [destinationType, setDestinationType] = useState('city'); // 'city' | 'island' | 'country'
+  const [manualTypeOverride, setManualTypeOverride] = useState(false);
   const [editingCityIndex, setEditingCityIndex] = useState(null);
   const [isLookingUpCity, setIsLookingUpCity] = useState(false);
 
@@ -44,15 +51,59 @@ export function CheckInModal({
   const [selectedFoodCity, setSelectedFoodCity] = useState('');
   const [isLookingUpSpot, setIsLookingUpSpot] = useState(false);
 
-  // Add or update a City (always fetches fresh coordinates & saves its visit Month + Year)
+  // Smart Auto-Detection as user types a destination name (unless manually overridden)
+  const handleCityInputChange = (text) => {
+    setCityInput(text);
+    if (!manualTypeOverride) {
+      const autoType = detectDestinationTypeSync(text, countryName);
+      setDestinationType(autoType);
+    }
+  };
+
+  // Manual Override: Always accept the user's choice without warning/error
+  const handleSelectDestinationType = (newType) => {
+    setDestinationType(newType);
+    setManualTypeOverride(true);
+
+    // If user is currently editing an existing destination chip, update its type immediately too
+    if (editingCityIndex !== null) {
+      const updated = cities.map((c, idx) => {
+        if (idx !== editingCityIndex) return c;
+        const cObj =
+          typeof c === 'string'
+            ? { name: c, lat: null, lng: null, year, month }
+            : c;
+        return { ...cObj, type: newType };
+      });
+      setCities(updated);
+    }
+  };
+
+  // Add or update a Destination (City, Island, or Country)
   const handleAddOrUpdateCity = async () => {
-    const trimmedCity = cityInput.trim();
+    const trimmedCity =
+      cityInput.trim() ||
+      (destinationType === 'country' ? countryName.trim() : '');
     if (!trimmedCity) return;
 
     setIsLookingUpCity(true);
     const query = [trimmedCity, countryName.trim()].filter(Boolean).join(', ');
-    const coords = await fetchCoordinates(query);
+    const coords = await fetchCoordinates(
+      query,
+      trimmedCity,
+      countryName.trim()
+    );
     setIsLookingUpCity(false);
+
+    // Use manual override if user tapped a button; otherwise use smart auto-detected classification
+    const finalType = manualTypeOverride
+      ? destinationType
+      : coords?.detectedType ||
+        detectDestinationTypeSync(trimmedCity, countryName);
+
+    if (!countryName.trim() && coords?.detectedCountry) {
+      setCountryName(coords.detectedCountry);
+    }
 
     const cityObj = {
       name: trimmedCity,
@@ -60,6 +111,7 @@ export function CheckInModal({
       lng: coords ? coords.lng : null,
       year: year.trim() || '2026',
       month: month.trim() || 'May',
+      type: finalType,
     };
 
     if (editingCityIndex !== null) {
@@ -72,11 +124,20 @@ export function CheckInModal({
       setCities([...cities, cityObj]);
     }
     setCityInput('');
+    setDestinationType('city');
+    setManualTypeOverride(false);
   };
 
   const handleStartEditCity = (index) => {
     const c = cities[index];
-    setCityInput(typeof c === 'string' ? c : c.name);
+    const cName = typeof c === 'string' ? c : c.name;
+    const cType =
+      typeof c === 'object' && c.type
+        ? c.type
+        : detectDestinationTypeSync(cName, countryName);
+    setCityInput(cName);
+    setDestinationType(cType);
+    setManualTypeOverride(true);
     if (typeof c === 'object') {
       if (c.year) setYear(c.year);
       if (c.month) setMonth(c.month);
@@ -89,6 +150,8 @@ export function CheckInModal({
     if (editingCityIndex === index) {
       setEditingCityIndex(null);
       setCityInput('');
+      setDestinationType('city');
+      setManualTypeOverride(false);
     }
   };
 
@@ -114,10 +177,10 @@ export function CheckInModal({
         ? typeof cities[0] === 'string'
           ? cities[0]
           : cities[0].name
-        : cityInput.trim());
+        : cityInput.trim() || countryName.trim());
 
-    const spotYear = (foodYearInput.trim() || year.trim() || '2026');
-    const spotMonth = (foodMonthInput.trim() || month.trim() || 'May');
+    const spotYear = foodYearInput.trim() || year.trim() || '2026';
+    const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
 
     setIsLookingUpSpot(true);
     const resolved = await searchVenueInCity(
@@ -143,7 +206,9 @@ export function CheckInModal({
         {
           name: trimmed,
           city: activeCityName,
-          address: [activeCityName, countryName.trim()].filter(Boolean).join(', '),
+          address: [activeCityName, countryName.trim()]
+            .filter(Boolean)
+            .join(', '),
           lat: null,
           lng: null,
           year: spotYear,
@@ -165,22 +230,43 @@ export function CheckInModal({
     let finalCities = [...cities];
     let finalBeers = [...beers];
     let finalFoodDrinks = [...foodDrinks];
+    let resolvedCountryName = countryName.trim();
 
-    if (cityInput.trim()) {
-      const pendingCityName = cityInput.trim();
+    const pendingDestName =
+      cityInput.trim() ||
+      (finalCities.length === 0 && destinationType === 'country'
+        ? resolvedCountryName
+        : '');
+
+    if (pendingDestName) {
       setIsLookingUpCity(true);
-      const query = [pendingCityName, countryName.trim()]
+      const query = [pendingDestName, resolvedCountryName]
         .filter(Boolean)
         .join(', ');
-      const coords = await fetchCoordinates(query);
+      const coords = await fetchCoordinates(
+        query,
+        pendingDestName,
+        resolvedCountryName
+      );
       setIsLookingUpCity(false);
 
+      const finalType = manualTypeOverride
+        ? destinationType
+        : coords?.detectedType ||
+          detectDestinationTypeSync(pendingDestName, resolvedCountryName);
+
+      if (!resolvedCountryName && coords?.detectedCountry) {
+        resolvedCountryName = coords.detectedCountry;
+        setCountryName(coords.detectedCountry);
+      }
+
       const cityObj = {
-        name: pendingCityName,
+        name: pendingDestName,
         lat: coords ? coords.lat : null,
         lng: coords ? coords.lng : null,
         year: year.trim() || '2026',
         month: month.trim() || 'May',
+        type: finalType,
       };
 
       if (editingCityIndex !== null) {
@@ -193,6 +279,7 @@ export function CheckInModal({
       }
       setCities(finalCities);
       setCityInput('');
+      setManualTypeOverride(false);
     }
 
     if (beerInput.trim()) {
@@ -209,16 +296,16 @@ export function CheckInModal({
           ? typeof finalCities[0] === 'string'
             ? finalCities[0]
             : finalCities[0].name
-          : '');
+          : resolvedCountryName);
 
-      const spotYear = (foodYearInput.trim() || year.trim() || '2026');
-      const spotMonth = (foodMonthInput.trim() || month.trim() || 'May');
+      const spotYear = foodYearInput.trim() || year.trim() || '2026';
+      const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
 
       setIsLookingUpSpot(true);
       const resolved = await searchVenueInCity(
         pendingName,
         activeCityName,
-        countryName.trim()
+        resolvedCountryName
       );
       setIsLookingUpSpot(false);
 
@@ -232,7 +319,9 @@ export function CheckInModal({
         : {
             name: pendingName,
             city: activeCityName,
-            address: [activeCityName, countryName.trim()].filter(Boolean).join(', '),
+            address: [activeCityName, resolvedCountryName]
+              .filter(Boolean)
+              .join(', '),
             lat: null,
             lng: null,
             year: spotYear,
@@ -245,7 +334,7 @@ export function CheckInModal({
       setFoodYearInput('');
     }
 
-    onSave(finalCities, finalBeers, finalFoodDrinks);
+    onSave(finalCities, finalBeers, finalFoodDrinks, resolvedCountryName);
   };
 
   return (
@@ -267,13 +356,13 @@ export function CheckInModal({
               )}
             </View>
 
-            {/* Step 1: Country, Date & Multiple Cities */}
+            {/* Step 1: Country, Date & Destination Search */}
             <Text style={styles.fieldLabel}>
-              1. Country, Visit Date & Cities (repeat countries merge automatically!):
+              1. Country, Visit Date & Destination (City, Island, or Country):
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Country (e.g. Austria, Slovenia, Poland)"
+              placeholder="Country (e.g. Greece, Italy, Austria, Portugal)"
               placeholderTextColor="#64748b"
               value={countryName}
               onChangeText={setCountryName}
@@ -296,14 +385,17 @@ export function CheckInModal({
               />
             </View>
 
-            {/* Multi-City Input Row */}
-            <View style={[styles.inlineAddRow, { marginBottom: 10 }]}>
+            {/* Destination Search Input Row */}
+            <View style={[styles.inlineAddRow, { marginBottom: 8 }]}>
               <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                placeholder="City (e.g. Vienna, Linz, Salzburg)"
+                style={[
+                  styles.input,
+                  { flex: 1, marginBottom: 0, marginRight: 8 },
+                ]}
+                placeholder="Search place (e.g. Santorini, Venice, Bali, Lisbon)"
                 placeholderTextColor="#64748b"
                 value={cityInput}
-                onChangeText={setCityInput}
+                onChangeText={handleCityInputChange}
                 onSubmitEditing={handleAddOrUpdateCity}
               />
               <TouchableOpacity
@@ -315,17 +407,86 @@ export function CheckInModal({
                   <ActivityIndicator color="#0f172a" size="small" />
                 ) : (
                   <Text style={styles.inlineAddBtnText}>
-                    {editingCityIndex !== null ? '✓ Update' : '+ City'}
+                    {editingCityIndex !== null ? '✓ Update' : '+ Add'}
                   </Text>
                 )}
               </TouchableOpacity>
             </View>
 
-            {/* Added Cities Chips (Tap a city to edit/rename & move its pin, or ✕ to remove) */}
+            {/* Step 3: 3-Button Destination Classification Selector (Auto-detected + Manual Override) */}
+            <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>
+              Destination Type (Auto-detected • Tap to override):
+            </Text>
+            <View style={styles.categoryPickerRow}>
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  destinationType === 'city' && styles.categoryPillActive,
+                ]}
+                onPress={() => handleSelectDestinationType('city')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    destinationType === 'city' && styles.categoryPillTextActive,
+                  ]}
+                >
+                  🏙️ City
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  destinationType === 'island' && styles.categoryPillActive,
+                ]}
+                onPress={() => handleSelectDestinationType('island')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    destinationType === 'island' &&
+                      styles.categoryPillTextActive,
+                  ]}
+                >
+                  🏝️ Island
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  destinationType === 'country' && styles.categoryPillActive,
+                ]}
+                onPress={() => handleSelectDestinationType('country')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    destinationType === 'country' &&
+                      styles.categoryPillTextActive,
+                  ]}
+                >
+                  🌍 Country
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Added Destinations Chips (Tap a chip to edit/rename or change its City/Island/Country type) */}
             {cities.length > 0 && (
-              <View style={[styles.addedItemsList, { marginTop: 0, marginBottom: 12 }]}>
+              <View
+                style={[
+                  styles.addedItemsList,
+                  { marginTop: 0, marginBottom: 12 },
+                ]}
+              >
                 {cities.map((c, idx) => {
                   const cName = typeof c === 'string' ? c : c.name;
+                  const cType =
+                    typeof c === 'object' && c.type
+                      ? c.type
+                      : detectDestinationTypeSync(cName, countryName);
+                  const typeEmoji = getDestinationEmoji(cType);
                   const cDate =
                     typeof c === 'object' && (c.month || c.year)
                       ? ` (${[c.month, c.year].filter(Boolean).join(' ')})`
@@ -342,9 +503,11 @@ export function CheckInModal({
                         },
                       ]}
                     >
-                      <TouchableOpacity onPress={() => handleStartEditCity(idx)}>
+                      <TouchableOpacity
+                        onPress={() => handleStartEditCity(idx)}
+                      >
                         <Text style={styles.addedItemChipText}>
-                          📍 {cName}
+                          {typeEmoji} {cName}
                           {cDate} ✏️
                         </Text>
                       </TouchableOpacity>
@@ -357,9 +520,9 @@ export function CheckInModal({
               </View>
             )}
 
-            {/* Step 2: Just Visit (📍) or Add Subcategories */}
+            {/* Step 2: Spot Pins inside this Destination Container */}
             <Text style={styles.fieldLabel}>
-              2. Check-in Mode & Subcategories:
+              2. Spot Pins Inside Destination:
             </Text>
             <View style={styles.categoryPickerRow}>
               <TouchableOpacity
@@ -375,7 +538,7 @@ export function CheckInModal({
                     activeSubTab === 'visit' && styles.categoryPillTextActive,
                   ]}
                 >
-                  📍 Just Visit
+                  📍 Sights / Visit
                 </Text>
               </TouchableOpacity>
 
@@ -409,7 +572,8 @@ export function CheckInModal({
                     activeSubTab === 'food' && styles.categoryPillTextActive,
                   ]}
                 >
-                  🍽️ Food & Drink {foodDrinks.length > 0 ? `(${foodDrinks.length})` : ''}
+                  🍽️ Food & Drink{' '}
+                  {foodDrinks.length > 0 ? `(${foodDrinks.length})` : ''}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -418,7 +582,19 @@ export function CheckInModal({
             {activeSubTab === 'visit' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryHint}>
-                  📍 Set the <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Month & Year</Text> above before adding a city or repeat visit! If you visit the same country again later, just add the new city/date—it will appear in your Timeline under that Month & Year without duplicating the country.
+                  ✨ Smart Auto-Detection automatically selects{' '}
+                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
+                    🏝️ Island
+                  </Text>{' '}
+                  (e.g. Santorini, Bali, Ibiza),{' '}
+                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
+                    🌍 Country
+                  </Text>
+                  , or{' '}
+                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
+                    🏙️ City
+                  </Text>
+                  . You can tap any of the 3 buttons above anytime to override!
                 </Text>
               </View>
             )}
@@ -426,18 +602,25 @@ export function CheckInModal({
             {activeSubTab === 'beer' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryTitle}>
-                  🍺 Beers tasted in {countryName.trim() ? countryName.trim() : 'this country'}:
+                  🍺 Beers tasted in{' '}
+                  {countryName.trim() ? countryName.trim() : 'this country'}:
                 </Text>
                 <View style={styles.inlineAddRow}>
                   <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                    placeholder="Local Beer Name (e.g. Stiegl, Augustiner, Peroni)"
+                    style={[
+                      styles.input,
+                      { flex: 1, marginBottom: 0, marginRight: 8 },
+                    ]}
+                    placeholder="Local Beer Name (e.g. Stiegl, Mythos, Peroni)"
                     placeholderTextColor="#64748b"
                     value={beerInput}
                     onChangeText={setBeerInput}
                     onSubmitEditing={handleAddBeer}
                   />
-                  <TouchableOpacity style={styles.inlineAddBtn} onPress={handleAddBeer}>
+                  <TouchableOpacity
+                    style={styles.inlineAddBtn}
+                    onPress={handleAddBeer}
+                  >
                     <Text style={styles.inlineAddBtnText}>+ Add</Text>
                   </TouchableOpacity>
                 </View>
@@ -445,9 +628,14 @@ export function CheckInModal({
                 {beers.length > 0 && (
                   <View style={styles.addedItemsList}>
                     {beers.map((item, index) => (
-                      <View key={`modal-beer-${index}`} style={styles.addedItemChip}>
+                      <View
+                        key={`modal-beer-${index}`}
+                        style={styles.addedItemChip}
+                      >
                         <Text style={styles.addedItemChipText}>🍺 {item}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveBeer(index)}>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveBeer(index)}
+                        >
                           <Text style={styles.removeChipX}>✕</Text>
                         </TouchableOpacity>
                       </View>
@@ -463,14 +651,25 @@ export function CheckInModal({
                   🍽️ Add Food & Drink Spot (with Month & Year):
                 </Text>
 
-                {/* If multiple cities exist in this country, let user pick which city this place is in */}
+                {/* If multiple destinations exist in this country, let user pick which City/Island this place is in */}
                 {cities.length > 1 && (
-                  <View style={[styles.addedItemsList, { marginTop: 0, marginBottom: 8 }]}>
+                  <View
+                    style={[
+                      styles.addedItemsList,
+                      { marginTop: 0, marginBottom: 8 },
+                    ]}
+                  >
                     {cities.map((c, idx) => {
                       const cName = typeof c === 'string' ? c : c.name;
+                      const cType =
+                        typeof c === 'object' && c.type
+                          ? c.type
+                          : detectDestinationTypeSync(cName, countryName);
                       const isSelected =
-                        (selectedFoodCity || (typeof cities[0] === 'string' ? cities[0] : cities[0].name)) ===
-                        cName;
+                        (selectedFoodCity ||
+                          (typeof cities[0] === 'string'
+                            ? cities[0]
+                            : cities[0].name)) === cName;
                       return (
                         <TouchableOpacity
                           key={`food-city-${idx}`}
@@ -483,10 +682,13 @@ export function CheckInModal({
                           <Text
                             style={[
                               styles.addedItemChipText,
-                              isSelected && { color: '#0f172a', fontWeight: '800' },
+                              isSelected && {
+                                color: '#0f172a',
+                                fontWeight: '800',
+                              },
                             ]}
                           >
-                            📍 {cName}
+                            {getDestinationEmoji(cType)} {cName}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -514,7 +716,10 @@ export function CheckInModal({
 
                 <View style={styles.inlineAddRow}>
                   <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
+                    style={[
+                      styles.input,
+                      { flex: 1, marginBottom: 0, marginRight: 8 },
+                    ]}
                     placeholder="Place Name (e.g. Figlmüller, Café Central)"
                     placeholderTextColor="#64748b"
                     value={foodDrinkInput}
@@ -537,9 +742,12 @@ export function CheckInModal({
                 {foodDrinks.length > 0 && (
                   <View style={{ marginTop: 10, gap: 8 }}>
                     {foodDrinks.map((item, index) => {
-                      const spotName = typeof item === 'string' ? item : item.name;
+                      const spotName =
+                        typeof item === 'string' ? item : item.name;
                       const spotAddress =
-                        typeof item === 'object' && item.address ? item.address : null;
+                        typeof item === 'object' && item.address
+                          ? item.address
+                          : null;
                       const spotDate =
                         typeof item === 'object' && (item.month || item.year)
                           ? [item.month, item.year].filter(Boolean).join(' ')
@@ -560,7 +768,9 @@ export function CheckInModal({
                           <View style={{ flex: 1, marginRight: 8 }}>
                             <Text style={styles.addedItemChipText}>
                               🍽️ {spotName}{' '}
-                              <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
+                              <Text
+                                style={{ color: '#38bdf8', fontWeight: '700' }}
+                              >
                                 • {spotDate}
                               </Text>
                             </Text>
@@ -576,7 +786,9 @@ export function CheckInModal({
                               </Text>
                             ) : null}
                           </View>
-                          <TouchableOpacity onPress={() => handleRemoveFoodDrink(index)}>
+                          <TouchableOpacity
+                            onPress={() => handleRemoveFoodDrink(index)}
+                          >
                             <Text style={styles.removeChipX}>✕</Text>
                           </TouchableOpacity>
                         </View>
@@ -599,7 +811,9 @@ export function CheckInModal({
               <TouchableOpacity
                 style={[styles.btn, styles.saveBtn]}
                 onPress={handleSaveWithPendingInputs}
-                disabled={isSearchingLocation || isLookingUpCity || isLookingUpSpot}
+                disabled={
+                  isSearchingLocation || isLookingUpCity || isLookingUpSpot
+                }
               >
                 {isSearchingLocation || isLookingUpCity || isLookingUpSpot ? (
                   <ActivityIndicator color="#0f172a" size="small" />

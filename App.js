@@ -13,7 +13,10 @@ import {
   usePinCheckData,
   normalizeStoredPlaces,
 } from './src/hooks/usePinCheckData';
-import { fetchCoordinates } from './src/utils/geocoding';
+import {
+  fetchCoordinates,
+  detectDestinationTypeSync,
+} from './src/utils/geocoding';
 import { getPlaceCitiesList } from './src/utils/categories';
 import { shareProfile, openStay22 } from './src/utils/externalLinks';
 import { styles } from './src/styles/styles';
@@ -177,29 +180,45 @@ export default function App() {
     setModalVisible(false);
   };
 
-  // Save or Update Country Check-in & Re-Geocode Any Changed or New Cities!
+  // Save or Update Country Check-in & Re-Geocode Any Changed or New Cities/Islands!
   const handleSavePin = async (
     finalCities = cities,
     finalBeers = beers,
-    finalFoodDrinks = foodDrinks
+    finalFoodDrinks = foodDrinks,
+    overrideCountryName = countryName
   ) => {
     if (isReadOnlyViewer) return;
-    if (!countryName.trim() || finalCities.length === 0) {
+    const activeCountry = (overrideCountryName || countryName || '').trim();
+    const effectiveCities =
+      finalCities.length > 0
+        ? finalCities
+        : activeCountry
+        ? [
+            {
+              name: activeCountry,
+              type: 'country',
+              year: year.trim() || '2026',
+              month: month.trim() || 'May',
+            },
+          ]
+        : [];
+
+    if (!activeCountry && effectiveCities.length === 0) {
       Alert.alert(
         'Missing Destination',
-        'Please enter the Country and add at least one City.'
+        'Please enter a Country, City, or Island.'
       );
       return;
     }
 
     setIsSearchingLocation(true);
 
-    // Ensure every city in finalCities has fresh coordinates for its current name!
+    // Ensure every city/island in effectiveCities has fresh coordinates for its current name!
     const existingCountryMatch = !editingPinId
       ? visitedPlaces.find(
           (p) =>
             (p.country || '').trim().toLowerCase() ===
-            countryName.trim().toLowerCase()
+            activeCountry.toLowerCase()
         )
       : null;
 
@@ -209,9 +228,10 @@ export default function App() {
       : null;
     const existingCities = existingPlace ? getPlaceCitiesList(existingPlace) : [];
 
+    let detectedParentCountry = activeCountry;
     const resolvedCities = [];
-    for (let i = 0; i < finalCities.length; i++) {
-      const c = finalCities[i];
+    for (let i = 0; i < effectiveCities.length; i++) {
+      const c = effectiveCities[i];
       const cName = (typeof c === 'string' ? c : c.name || '').trim();
       if (!cName) continue;
 
@@ -219,8 +239,13 @@ export default function App() {
         (typeof c === 'object' && c.year ? c.year : year).trim() || '2026';
       const cMonth =
         (typeof c === 'object' && c.month ? c.month : month).trim() || 'May';
+      let cType =
+        typeof c === 'object' &&
+        (c.type === 'island' || c.type === 'country' || c.type === 'city')
+          ? c.type
+          : null;
 
-      // Check if an existing city had the exact same name & valid coordinates
+      // Check if an existing destination had the exact same name & valid coordinates
       const prevMatch = existingCities.find(
         (prev) => prev.name.trim().toLowerCase() === cName.toLowerCase()
       );
@@ -238,15 +263,29 @@ export default function App() {
           ? prevMatch.lng
           : null;
 
-      // If the city is new or its name changed, fetch fresh coordinates from OpenStreetMap!
+      // If the destination is new or its name changed, fetch fresh coordinates from OpenStreetMap!
       if (!prevMatch || cLat === null || cLng === null) {
+        const query = [cName, detectedParentCountry].filter(Boolean).join(', ');
         const fetched = await fetchCoordinates(
-          `${cName}, ${countryName.trim()}`
+          query,
+          cName,
+          detectedParentCountry
         );
         if (fetched) {
           cLat = fetched.lat;
           cLng = fetched.lng;
+          if (!cType && fetched.detectedType) {
+            cType = fetched.detectedType;
+          }
+          if (!detectedParentCountry && fetched.detectedCountry) {
+            detectedParentCountry = fetched.detectedCountry;
+            setCountryName(fetched.detectedCountry);
+          }
         }
+      }
+
+      if (!cType) {
+        cType = detectDestinationTypeSync(cName, detectedParentCountry);
       }
 
       if (cLat === null || cLng === null) {
@@ -255,7 +294,9 @@ export default function App() {
           cLng = pendingCoords.lng;
         } else {
           // Fallback to country coordinates
-          const countryCoords = await fetchCoordinates(countryName.trim());
+          const countryCoords = await fetchCoordinates(
+            detectedParentCountry || cName
+          );
           cLat = countryCoords ? countryCoords.lat : 48.2082;
           cLng = countryCoords ? countryCoords.lng : 16.3738;
         }
@@ -267,6 +308,7 @@ export default function App() {
         lng: cLng,
         year: cYear,
         month: cMonth,
+        type: cType,
       });
     }
 
@@ -275,17 +317,19 @@ export default function App() {
     if (resolvedCities.length === 0) {
       Alert.alert(
         'Location Not Found',
-        'Could not find coordinates for the entered city. Please check the spelling.'
+        'Could not find coordinates for the entered destination. Please check the spelling.'
       );
       return;
     }
+
+    const finalCountryName = detectedParentCountry || resolvedCities[0].name;
 
     const normalizedFoodDrinks = (finalFoodDrinks || []).map((spot) =>
       typeof spot === 'string'
         ? {
             name: spot,
             city: resolvedCities[0].name,
-            address: `${resolvedCities[0].name}, ${countryName.trim()}`,
+            address: `${resolvedCities[0].name}, ${finalCountryName}`,
             lat: null,
             lng: null,
             year: year.trim() || '2026',
@@ -307,7 +351,7 @@ export default function App() {
         p.id === editingPinId
           ? {
               ...p,
-              country: countryName.trim(),
+              country: finalCountryName,
               city: primaryCity.name,
               cities: resolvedCities,
               year: year.trim() || '2026',
@@ -323,15 +367,22 @@ export default function App() {
       // Automatically merge repeat visit into the existing Country entry!
       const mergedCities = [...existingCities];
       resolvedCities.forEach((rc) => {
-        const alreadySameCityAndDate = mergedCities.some(
+        const existingIdx = mergedCities.findIndex(
           (ec) =>
             ec.name.trim().toLowerCase() === rc.name.toLowerCase() &&
             (ec.year || existingCountryMatch.year) === rc.year &&
             (ec.month || existingCountryMatch.month).toLowerCase() ===
               rc.month.toLowerCase()
         );
-        if (!alreadySameCityAndDate) {
+        if (existingIdx === -1) {
           mergedCities.push(rc);
+        } else {
+          mergedCities[existingIdx] = {
+            ...mergedCities[existingIdx],
+            type: rc.type,
+            lat: rc.lat,
+            lng: rc.lng,
+          };
         }
       });
 
@@ -356,7 +407,7 @@ export default function App() {
     } else {
       const newPlace = {
         id: Date.now().toString(),
-        country: countryName.trim(),
+        country: finalCountryName,
         city: primaryCity.name,
         cities: resolvedCities,
         year: year.trim() || '2026',

@@ -181,6 +181,39 @@ See my map & start your own collection: [Profile_URL]
 
 ---
 
+# Task: Automatic Destination Classification (City, Island, Country) & Passport Stats
+
+## Step 1: Set Up Mutual Exclusivity
+* Each destination container has one main classification: **City** (`'city'`), **Island** (`'island'`), or **Country** (`'country'`).
+* Choosing **Island** means it does **not** count as a **City**, and choosing **City** means it does **not** count as an **Island**.
+* Spot pins (`Sights`, `Food & Drink`, `Beer`) sit inside whichever destination container the user picks.
+
+## Step 2: Implement Smart Auto-Detection
+* When a user searches or types a place using the location search bar (`src/utils/geocoding.js` + `CheckInModal.js`):
+  * If OpenStreetMap Nominatim (`addresstype`, `type`, `class`, or `address.island`/`archipelago`) or the built-in island gazetteer identifies the place as an island or archipelago (e.g., Santorini, Rhodes, Kos, Bali, Ibiza), automatically select the **`🏝️ Island`** toggle.
+  * If it identifies the place as a country (e.g., Portugal, Japan), automatically select the **`🌍 Country`** toggle.
+  * For everything else (e.g., Athens, Venice, Berlin, Paris), default to the **`🏙️ City`** toggle.
+
+## Step 3: Provide a Manual Override
+* Display a 3-button selector directly on the destination screen (`CheckInModal.js`):
+  * `[ 🏙️ City ] | [ 🏝️ Island ] | [ 🌍 Country ]`
+* The auto-detected option is highlighted automatically unless manually overridden by the user.
+* Allow the user to tap any button to override the selection at any time without showing any error or warning.
+
+## Step 4: Update the Passport Stats
+* Count each entry toward its respective mutually exclusive passport total (`src/utils/categories.js`):
+  * `City` adds `+1` to the **Total Cities** counter (`getUniqueCitiesCount`).
+  * `Island` adds `+1` to the **Total Islands** counter (`getUniqueIslandsCount`).
+  * `Country` adds `+1` to the **Total Countries** counter (`getUniqueCountriesCount`).
+* Display these three counters on the user's passport screen (`ProfileHeader.js`), public web card (`PublicProfileView.js`), and share message (`externalLinks.js`):
+  * `[X] Countries · [Y] Cities · [Z] Islands`
+
+## Step 5: Preserve the Stay22 Hotel Link
+* Ensure the **"🏨 Find Stays"** button (`openStay22` in `src/utils/externalLinks.js`) uses the container's location name plus its parent country (e.g., `address=Santorini, Greece` or `address=Venice, Italy`).
+* Hotel searches work consistently whether the destination is saved as a **City** or an **Island**.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure

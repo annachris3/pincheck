@@ -7,7 +7,7 @@ import {
   openBolt,
   openStay22,
 } from '../utils/externalLinks';
-import { getPlaceCitiesList } from '../utils/categories';
+import { getPlaceCitiesList, getDestinationEmoji } from '../utils/categories';
 
 export function ActionSheetModal({
   visible,
@@ -19,6 +19,12 @@ export function ActionSheetModal({
   readOnly = false,
 }) {
   const citiesList = selectedPlace ? getPlaceCitiesList(selectedPlace) : [];
+  const onlyCitiesCount = citiesList.filter(
+    (c) => (c.type || 'city') === 'city'
+  ).length;
+  const onlyIslandsCount = citiesList.filter(
+    (c) => c.type === 'island'
+  ).length;
   const beers = Array.isArray(selectedPlace?.beers) ? selectedPlace.beers : [];
   const rawFoodDrinks = Array.isArray(selectedPlace?.foodDrinks)
     ? selectedPlace.foodDrinks
@@ -185,8 +191,10 @@ export function ActionSheetModal({
                     </Text>
                     <Text style={styles.sheetSubtitle}>
                       {selectedPlace.month} {selectedPlace.year} • 🏙️{' '}
-                      {citiesList.length}{' '}
-                      {citiesList.length === 1 ? 'City' : 'Cities'} • 🍺{' '}
+                      {onlyCitiesCount}{' '}
+                      {onlyCitiesCount === 1 ? 'City' : 'Cities'} • 🏝️{' '}
+                      {onlyIslandsCount}{' '}
+                      {onlyIslandsCount === 1 ? 'Island' : 'Islands'} • 🍺{' '}
                       {beers.length} • 🍽️ {normalizedSpots.length}
                     </Text>
                   </View>
@@ -212,11 +220,11 @@ export function ActionSheetModal({
                   </View>
                 </View>
 
-                {/* Visited Cities in this Country (Maps + Find Stays for each City) */}
+                {/* Visited Cities & Islands in this Country (Maps + Find Stays for each City or Island) */}
                 {citiesList.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
-                      🏙️ Cities Visited in {selectedPlace.country}
+                      🏙️🏝️ Cities & Islands Visited in {selectedPlace.country}
                     </Text>
                     <View style={{ gap: 8 }}>
                       {citiesList.map((c, idx) => (
@@ -225,9 +233,11 @@ export function ActionSheetModal({
                           style={styles.spotActionCard}
                         >
                           <Text style={styles.spotActionName}>
-                            📍 {c.name}, {selectedPlace.country}{' '}
+                            {getDestinationEmoji(c.type)} {c.name},{' '}
+                            {selectedPlace.country}{' '}
                             <Text style={{ color: '#38bdf8', fontSize: 12 }}>
-                              • {c.month || selectedPlace.month} {c.year || selectedPlace.year}
+                              • {c.month || selectedPlace.month}{' '}
+                              {c.year || selectedPlace.year}
                             </Text>
                           </Text>
                           <View style={[styles.rideRow, { marginBottom: 0 }]}>

@@ -5,6 +5,7 @@ import { openSocial, DEFAULT_TRAVELER_AVATAR } from '../utils/externalLinks';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
+  getUniqueIslandsCount,
   getTotalBeersCount,
   getTotalFoodDrinksCount,
 } from '../utils/categories';
@@ -28,9 +29,10 @@ export function ProfileHeader({
 }) {
   const [failedUri, setFailedUri] = useState(null);
 
-  // Derived Macro Stats (counts all unique countries and all unique cities across multi-city entries)
+  // Derived Macro Stats (Mutually Exclusive: Countries, Cities, Islands)
   const uniqueCountries = getUniqueCountriesCount(visitedPlaces);
   const uniqueCities = getUniqueCitiesCount(visitedPlaces);
+  const uniqueIslands = getUniqueIslandsCount(visitedPlaces);
 
   // Subcategory Totals
   const beerCount = getTotalBeersCount(visitedPlaces);
@@ -135,13 +137,13 @@ export function ProfileHeader({
         )}
       </View>
 
-      {/* Macro Stats Strip */}
+      {/* Passport Stats Strip: [X] Countries · [Y] Cities · [Z] Islands */}
       <View style={styles.macroStatsRow}>
-        <Text style={styles.macroStatText}>📍 {visitedPlaces.length} Check-ins</Text>
-        <Text style={styles.statDot}>•</Text>
         <Text style={styles.macroStatText}>🌍 {uniqueCountries} Countries</Text>
-        <Text style={styles.statDot}>•</Text>
+        <Text style={styles.statDot}>·</Text>
         <Text style={styles.macroStatText}>🏙️ {uniqueCities} Cities</Text>
+        <Text style={styles.statDot}>·</Text>
+        <Text style={styles.macroStatText}>🏝️ {uniqueIslands} Islands</Text>
       </View>
 
       {/* Subcategory Stats Badges */}

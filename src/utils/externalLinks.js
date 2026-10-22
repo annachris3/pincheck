@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
+  getUniqueIslandsCount,
 } from './categories';
 import { syncPublicProfileToCloud } from '../hooks/usePinCheckData';
 
@@ -30,24 +31,28 @@ export const buildProfileShareUrl = () => {
 };
 
 // Stay22 In-App Accommodation Search ("🏨 Find Stays")
+// Uses the destination container's location name (City or Island) + parent Country (e.g. "Santorini, Greece" or "Venice, Italy")
 export const openStay22 = async (place, spotName = null) => {
-  const locationParts = [
-    spotName,
-    place?.city,
-    place?.country,
-  ]
+  const destName = (place?.city || '').trim();
+  const parentCountry = (place?.country || '').trim();
+
+  // Deduplicate if Country-level container has city === country
+  const uniqueDestAndCountry =
+    destName &&
+    parentCountry &&
+    destName.toLowerCase() === parentCountry.toLowerCase()
+      ? [parentCountry]
+      : [destName, parentCountry].filter(Boolean);
+
+  const cityOrIslandAndCountry = uniqueDestAndCountry.join(', ');
+
+  const locationParts = [spotName, ...uniqueDestAndCountry]
     .map((p) => (p || '').trim())
     .filter(Boolean);
 
-  // Combine city + country (e.g. "Vienna, Austria"), or fall back to available geographic data
-  const cityAndCountry = [place?.city, place?.country]
-    .map((p) => (p || '').trim())
-    .filter(Boolean)
-    .join(', ');
-
-  const targetAddress = cityAndCountry || locationParts.join(', ');
+  const targetAddress = cityOrIslandAndCountry || locationParts.join(', ');
   if (!targetAddress) {
-    Alert.alert('Missing Location', 'No city or country available to search stays.');
+    Alert.alert('Missing Location', 'No city, island, or country available to search stays.');
     return;
   }
 
@@ -68,11 +73,18 @@ export const openStay22 = async (place, spotName = null) => {
   }
 };
 
-// Addressless Google Maps Launcher (works for a City or a specific Food & Drink place inside that City)
+// Addressless Google Maps Launcher (works for a City, Island, or specific Food & Drink place)
 export const openInGoogleMaps = (place, spotName = null) => {
-  const target = spotName
-    ? `${spotName}, ${place.city}, ${place.country}`
-    : `${place.city}, ${place.country}`;
+  const destName = (place?.city || '').trim();
+  const parentCountry = (place?.country || '').trim();
+  const baseLocation =
+    destName &&
+    parentCountry &&
+    destName.toLowerCase() === parentCountry.toLowerCase()
+      ? parentCountry
+      : [destName, parentCountry].filter(Boolean).join(', ');
+
+  const target = spotName ? `${spotName}, ${baseLocation}` : baseLocation;
   const query = encodeURIComponent(target);
   const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
   Linking.openURL(url).catch(() => {
@@ -80,7 +92,7 @@ export const openInGoogleMaps = (place, spotName = null) => {
   });
 };
 
-// Open Uber (for a City or a specific Food & Drink place)
+// Open Uber (for a City, Island, or specific Food & Drink place)
 export const openUber = (place, spotName = null) => {
   const label = spotName
     ? `${spotName}, ${place.city}`
@@ -100,7 +112,7 @@ export const openUber = (place, spotName = null) => {
     .catch(() => Linking.openURL(uberWebUrl));
 };
 
-// Open Bolt (for a City or a specific Food & Drink place)
+// Open Bolt (for a City, Island, or specific Food & Drink place)
 export const openBolt = (place) => {
   const boltAppUrl = `bolt://rides?destination_lat=${place.lat}&destination_lng=${place.lng}`;
   const boltWebUrl = 'https://bolt.eu';
@@ -145,11 +157,12 @@ export const shareProfile = async ({
     const userName = (displayName || 'Traveler').trim();
     const countriesCount = getUniqueCountriesCount(visitedPlaces);
     const citiesCount = getUniqueCitiesCount(visitedPlaces);
+    const islandsCount = getUniqueIslandsCount(visitedPlaces);
     const profileUrl = buildProfileShareUrl();
 
     const message =
       `Collect your travel stamps with me on PinCheck! ✈️📍\n` +
-      `${userName}'s Map: ${countriesCount} Countries · ${citiesCount} Cities\n` +
+      `${userName}'s Map: ${countriesCount} Countries · ${citiesCount} Cities · ${islandsCount} Islands\n` +
       `See my map & start your own collection: ${profileUrl}`;
 
     await Share.share({

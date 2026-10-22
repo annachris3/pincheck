@@ -4,6 +4,7 @@ import { styles } from '../styles/styles';
 import {
   getPlaceCitiesList,
   getMonthOrder,
+  getDestinationEmoji,
 } from '../utils/categories';
 
 export function TimelineView({
@@ -22,20 +23,30 @@ export function TimelineView({
     if (!seenCountries.has(key)) {
       seenCountries.add(key);
       const citiesInPlace = getPlaceCitiesList(place);
-      const uniqueCityNames = new Set(
-        citiesInPlace.map((c) => (c.name || '').trim().toLowerCase()).filter(Boolean)
+      const uniqueCities = new Set(
+        citiesInPlace
+          .filter((c) => (c.type || 'city') === 'city')
+          .map((c) => (c.name || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+      const uniqueIslands = new Set(
+        citiesInPlace
+          .filter((c) => c.type === 'island')
+          .map((c) => (c.name || '').trim().toLowerCase())
+          .filter(Boolean)
       );
       countryStamps.push({
         id: place.id,
         country: cName,
         year: place.year || '2026',
-        cityCount: uniqueCityNames.size,
+        cityCount: uniqueCities.size,
+        islandCount: uniqueIslands.size,
         placeRef: place,
       });
     }
   });
 
-  // Expand each country's cities and foodDrinks into distinct (Year, Month) timeline visits
+  // Expand each country's cities, islands, and foodDrinks into distinct (Year, Month) timeline visits
   // so repeat visits to the same country appear in the exact Year and Month you went there!
   const timelineEntries = [];
   visitedPlaces.forEach((place) => {
@@ -43,7 +54,7 @@ export function TimelineView({
     const foodDrinks = Array.isArray(place.foodDrinks) ? place.foodDrinks : [];
     const visitMap = {};
 
-    const addVisitCity = (vYear, vMonth, cityName) => {
+    const addVisitDestination = (vYear, vMonth, destName, destType = 'city') => {
       const y = (vYear || place.year || '2026').trim();
       const m = (vMonth || place.month || 'May').trim();
       const key = `${y}__${m.toLowerCase()}`;
@@ -53,28 +64,44 @@ export function TimelineView({
           country: place.country,
           year: y,
           month: m,
-          cities: [],
+          destinations: [],
           placeRef: place,
         };
       }
       if (
-        cityName &&
-        !visitMap[key].cities.some(
-          (existing) => existing.toLowerCase() === cityName.trim().toLowerCase()
+        destName &&
+        !visitMap[key].destinations.some(
+          (existing) => existing.name.toLowerCase() === destName.trim().toLowerCase()
         )
       ) {
-        visitMap[key].cities.push(cityName.trim());
+        visitMap[key].destinations.push({
+          name: destName.trim(),
+          type: destType || 'city',
+        });
       }
     };
 
     citiesList.forEach((c) => {
-      addVisitCity(c.year || place.year, c.month || place.month, c.name);
+      addVisitDestination(
+        c.year || place.year,
+        c.month || place.month,
+        c.name,
+        c.type || 'city'
+      );
     });
 
     foodDrinks.forEach((spot) => {
       if (typeof spot === 'object' && spot !== null) {
         const sCity = spot.city || place.city || citiesList[0]?.name || '';
-        addVisitCity(spot.year || place.year, spot.month || place.month, sCity);
+        const matchedDest = citiesList.find(
+          (c) => (c.name || '').toLowerCase() === sCity.toLowerCase()
+        );
+        addVisitDestination(
+          spot.year || place.year,
+          spot.month || place.month,
+          sCity,
+          matchedDest?.type || 'city'
+        );
       }
     });
 
@@ -85,7 +112,9 @@ export function TimelineView({
         country: place.country,
         year: place.year || '2026',
         month: place.month || 'May',
-        cities: place.city ? [place.city] : [],
+        destinations: place.city
+          ? [{ name: place.city, type: 'city' }]
+          : [],
         placeRef: place,
       });
     } else {
@@ -137,6 +166,11 @@ export function TimelineView({
                 <Text style={styles.stampMetaText}>
                   ★ {stamp.cityCount}{' '}
                   {stamp.cityCount === 1 ? 'City' : 'Cities'}
+                  {stamp.islandCount > 0
+                    ? ` · 🏝️ ${stamp.islandCount} ${
+                        stamp.islandCount === 1 ? 'Island' : 'Islands'
+                      }`
+                    : ''}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -157,12 +191,19 @@ export function TimelineView({
         ).size;
 
         const yearCitiesSet = new Set();
+        const yearIslandsSet = new Set();
         entriesThisYear.forEach((e) => {
-          (e.cities || []).forEach((cName) => {
-            if (cName) yearCitiesSet.add(cName.toLowerCase());
+          (e.destinations || []).forEach((d) => {
+            if (!d || !d.name) return;
+            if (d.type === 'island') {
+              yearIslandsSet.add(d.name.toLowerCase());
+            } else if ((d.type || 'city') === 'city') {
+              yearCitiesSet.add(d.name.toLowerCase());
+            }
           });
         });
         const yearCitiesCount = yearCitiesSet.size;
+        const yearIslandsCount = yearIslandsSet.size;
 
         return (
           <View key={yearKey} style={styles.yearSection}>
@@ -171,14 +212,24 @@ export function TimelineView({
                 {yearKey}  •  🌍 {yearCountriesCount}{' '}
                 {yearCountriesCount === 1 ? 'country' : 'countries'}  •  🏙️{' '}
                 {yearCitiesCount} {yearCitiesCount === 1 ? 'city' : 'cities'}
+                {yearIslandsCount > 0
+                  ? `  •  🏝️ ${yearIslandsCount} ${
+                      yearIslandsCount === 1 ? 'island' : 'islands'
+                    }`
+                  : ''}
               </Text>
             </View>
 
             {entriesThisYear.map((entry) => {
+              const destList = entry.destinations || [];
               const cityDisplay =
-                entry.cities && entry.cities.length > 0
-                  ? entry.cities.join(', ')
-                  : entry.placeRef?.city || '';
+                destList.length > 0
+                  ? destList
+                      .map((d) => `${getDestinationEmoji(d.type)} ${d.name}`)
+                      .join(', ')
+                  : entry.placeRef?.city
+                  ? `🏙️ ${entry.placeRef.city}`
+                  : `🌍 ${entry.country}`;
 
               return (
                 <TouchableOpacity
@@ -235,7 +286,7 @@ export function TimelineView({
                           flex: 1,
                         }}
                       >
-                        🏙️ {cityDisplay}
+                        {cityDisplay}
                       </Text>
                       <Text
                         style={{
