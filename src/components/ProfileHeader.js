@@ -49,6 +49,38 @@ export function ProfileHeader({
 
   return (
     <View style={styles.header}>
+      {readOnly && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: '#1e293b',
+            alignSelf: 'flex-start',
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: '#38bdf8',
+            marginBottom: 10,
+          }}
+        >
+          <Image
+            source={pincheckLogo}
+            style={{ width: 22, height: 22, borderRadius: 6 }}
+          />
+          <Text
+            style={{
+              color: '#38bdf8',
+              fontSize: 11,
+              fontWeight: '800',
+              letterSpacing: 0.6,
+            }}
+          >
+            PINCHECK TRAVEL MAP
+          </Text>
+        </View>
+      )}
       <View style={styles.profileRow}>
         {/* Avatar Photo Picker (Read-Only when viewed by external invitees) */}
         <TouchableOpacity
@@ -91,7 +123,7 @@ export function ProfileHeader({
           >
             <Image
               source={pincheckLogo}
-              style={{ width: 16, height: 16, borderRadius: 4 }}
+              style={{ width: 20, height: 20, borderRadius: 5 }}
             />
             <Text style={[styles.appBrandLowercase, { marginTop: 0 }]}>
               pincheck

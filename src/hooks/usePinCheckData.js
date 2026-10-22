@@ -279,8 +279,10 @@ export function usePinCheckData() {
           return;
         }
 
-        // NATIVE APP: Load from local AsyncStorage
+        // NATIVE APP: Load from local AsyncStorage (or auto-hydrate from cloud sync on fresh APK install!)
         const storedPlaces = await AsyncStorage.getItem(STORAGE_PLACES_KEY);
+        const storedProfile = await AsyncStorage.getItem(STORAGE_PROFILE_KEY);
+
         if (storedPlaces !== null) {
           const parsed = JSON.parse(storedPlaces);
           const placesArray = Array.isArray(parsed)
@@ -294,7 +296,6 @@ export function usePinCheckData() {
           }
         }
 
-        const storedProfile = await AsyncStorage.getItem(STORAGE_PROFILE_KEY);
         if (storedProfile !== null) {
           const profile = JSON.parse(storedProfile);
           if (profile.profilePhoto) {
@@ -308,6 +309,26 @@ export function usePinCheckData() {
           if (profile.tiktokUser !== undefined) setTiktokUser(profile.tiktokUser);
           if (profile.customLinkUrl !== undefined) setCustomLinkUrl(profile.customLinkUrl);
           if (profile.customLinkLabel) setCustomLinkLabel(profile.customLinkLabel);
+        }
+
+        // If fresh standalone APK install (no local storage yet), automatically restore latest Expo Go cloud sync!
+        if (storedPlaces === null && storedProfile === null) {
+          try {
+            const cloud = await fetchPublicProfileFromCloud();
+            if (cloud) {
+              if (cloud.profilePhoto) setProfilePhoto(cloud.profilePhoto);
+              if (cloud.displayName) setDisplayName(cloud.displayName);
+              if (cloud.homeLocation) setHomeLocation(cloud.homeLocation);
+              if (cloud.youtubeUrl !== undefined) setYoutubeUrl(cloud.youtubeUrl);
+              if (cloud.instagramUser !== undefined) setInstagramUser(cloud.instagramUser);
+              if (cloud.tiktokUser !== undefined) setTiktokUser(cloud.tiktokUser);
+              if (cloud.customLinkUrl !== undefined) setCustomLinkUrl(cloud.customLinkUrl);
+              if (cloud.customLinkLabel) setCustomLinkLabel(cloud.customLinkLabel);
+              if (Array.isArray(cloud.visitedPlaces) && cloud.visitedPlaces.length > 0) {
+                setVisitedPlaces(normalizeStoredPlaces(cloud.visitedPlaces));
+              }
+            }
+          } catch {}
         }
       } catch (e) {
         console.log('Error loading data from storage:', e);

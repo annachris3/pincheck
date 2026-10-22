@@ -1,0 +1,23 @@
+{
+  "short_name": "PinCheck",
+  "name": "PinCheck — Travel Map & Passport Stamps",
+  "description": "Check out my travel map, passport stamps, and pinned spots on PinCheck!",
+  "icons": [
+    {
+      "src": "/pincheck-logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#030b1c",
+  "theme_color": "#030b1c",
+  "display": "standalone",
+  "orientation": "portrait"
+}
