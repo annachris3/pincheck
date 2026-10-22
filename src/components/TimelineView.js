@@ -163,7 +163,8 @@ export function TimelineView({
           style={{
             backgroundColor: '#1e293b',
             borderRadius: 14,
-            padding: 14,
+            paddingVertical: 16,
+            paddingHorizontal: 18,
             borderWidth: 1,
             borderColor: '#334155',
           }}
@@ -195,8 +196,8 @@ export function TimelineView({
             style={{
               borderTopWidth: 1,
               borderTopColor: '#334155',
-              paddingTop: 8,
-              gap: 5,
+              paddingTop: 10,
+              gap: 8,
             }}
           >
             {allStarTiersAsc.map((tier) => {
@@ -212,22 +213,22 @@ export function TimelineView({
                 <View
                   key={`rank-tier-${tier.stars}`}
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
                     backgroundColor: isCurrent
                       ? 'rgba(251, 191, 36, 0.12)'
                       : 'transparent',
-                    paddingVertical: 4,
-                    paddingHorizontal: 6,
-                    borderRadius: 6,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    borderRadius: 8,
                   }}
                 >
                   <Text
                     style={{
                       color: isCurrent ? '#fbbf24' : '#e2e8f0',
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: isCurrent ? '800' : '700',
+                      marginBottom: 2,
                     }}
                   >
                     {tier.starGraphic} {tier.title}
@@ -235,8 +236,10 @@ export function TimelineView({
                   <Text
                     style={{
                       color: isCurrent ? '#f8fafc' : '#94a3b8',
-                      fontSize: 11,
-                      fontWeight: isCurrent ? '700' : '500',
+                      fontSize: 12,
+                      fontWeight: isCurrent ? '600' : '500',
+                      lineHeight: 17,
+                      flexShrink: 1,
                     }}
                   >
                     {ruleText}
@@ -248,11 +251,11 @@ export function TimelineView({
         </View>
       </View>
 
-      {/* Country Stamp Badges */}
+      {/* Passport Stamps */}
       {countryStamps.length > 0 && (
         <View style={styles.publicSectionBlock}>
           <Text style={styles.publicSectionTitle}>
-            🛂 Country Stamp Badges ({countryStamps.length})
+            🛂 Passport Stamps ({countryStamps.length})
           </Text>
           <View style={styles.stampGrid}>
             {countryStamps.map((stamp) => (

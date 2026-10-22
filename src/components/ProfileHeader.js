@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/styles';
 import { openSocial, DEFAULT_TRAVELER_AVATAR } from '../utils/externalLinks';
 import {
@@ -93,61 +94,58 @@ export function ProfileHeader({
         </TouchableOpacity>
       </View>
 
-      {/* Dynamic Social Media, Custom Links & Share */}
-      <View style={styles.socialRow}>
-        {youtubeUrl ? (
-          <TouchableOpacity
-            style={styles.socialPill}
-            onPress={() => openSocial(youtubeUrl)}
-          >
-            <Text style={styles.socialPillText}>▶️ YouTube</Text>
-          </TouchableOpacity>
-        ) : null}
+      {/* Compact Icon-Only Social Media Row (YouTube, Instagram, TikTok, Generic Link) */}
+      {(youtubeUrl || instagramUser || tiktokUser || customLinkUrl) ? (
+        <View style={styles.socialRow}>
+          {youtubeUrl ? (
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => openSocial(youtubeUrl)}
+              accessibilityLabel="YouTube"
+            >
+              <Ionicons name="logo-youtube" size={18} color="#FF0000" />
+            </TouchableOpacity>
+          ) : null}
 
-        {instagramUser ? (
-          <TouchableOpacity
-            style={styles.socialPill}
-            onPress={() =>
-              openSocial(`https://instagram.com/${instagramUser.replace('@', '')}`)
-            }
-          >
-            <Text style={styles.socialPillText}>📸 Instagram</Text>
-          </TouchableOpacity>
-        ) : null}
+          {instagramUser ? (
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() =>
+                openSocial(
+                  `https://instagram.com/${instagramUser.replace('@', '')}`
+                )
+              }
+              accessibilityLabel="Instagram"
+            >
+              <Ionicons name="logo-instagram" size={18} color="#E1306C" />
+            </TouchableOpacity>
+          ) : null}
 
-        {tiktokUser ? (
-          <TouchableOpacity
-            style={styles.socialPill}
-            onPress={() =>
-              openSocial(`https://tiktok.com/@${tiktokUser.replace('@', '')}`)
-            }
-          >
-            <Text style={styles.socialPillText}>🎵 TikTok</Text>
-          </TouchableOpacity>
-        ) : null}
+          {tiktokUser ? (
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() =>
+                openSocial(
+                  `https://tiktok.com/@${tiktokUser.replace('@', '')}`
+                )
+              }
+              accessibilityLabel="TikTok"
+            >
+              <Ionicons name="logo-tiktok" size={17} color="#f8fafc" />
+            </TouchableOpacity>
+          ) : null}
 
-        {/* Custom Link / Linktree */}
-        {customLinkUrl ? (
-          <TouchableOpacity
-            style={styles.socialPill}
-            onPress={() => openSocial(customLinkUrl)}
-          >
-            <Text style={styles.socialPillText}>🔗 {customLinkLabel}</Text>
-          </TouchableOpacity>
-        ) : null}
-
-        {/* Native Share Profile Button */}
-        {!readOnly && (
-          <TouchableOpacity
-            style={[styles.socialPill, { backgroundColor: '#38bdf8', borderColor: '#38bdf8' }]}
-            onPress={onShareProfile}
-          >
-            <Text style={[styles.socialPillText, { color: '#0f172a', fontWeight: '800' }]}>
-              📤 Share Profile
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          {customLinkUrl ? (
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => openSocial(customLinkUrl)}
+              accessibilityLabel={customLinkLabel || 'Link'}
+            >
+              <Ionicons name="link" size={18} color="#38bdf8" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Passport Stats Strip: [⭐⭐⭐ Globetrotter] · [X] Countries · [Y] Cities · [Z] Islands */}
       <View
@@ -180,6 +178,19 @@ export function ProfileHeader({
           <Text style={styles.tasteChipText}>🍽️ {foodDrinkCount} Food & Drink</Text>
         </View>
       </View>
+
+      {/* Dedicated Single-Row "📤 Share Your PinCheck" Button directly beneath category chips and above tabs */}
+      {!readOnly && (
+        <TouchableOpacity
+          style={styles.sharePinCheckBtn}
+          onPress={onShareProfile}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.sharePinCheckBtnText}>
+            📤 Share Your PinCheck
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Tab Switcher: World Map (main page) & Timeline / List */}
       <View style={styles.tabsContainer}>

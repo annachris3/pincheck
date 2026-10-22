@@ -247,6 +247,30 @@ Evaluate the user's rank based on total confirmed destinations:
 
 ---
 
+# Task: Update Profile UI, Rename Sections, and Native Text Share
+
+## 1. Social Media Row (`ProfileHeader.js`)
+* Convert the social links row into compact icon-only buttons using official brand logos (`@expo/vector-icons` `Ionicons`): YouTube (`logo-youtube`), Instagram (`logo-instagram`), TikTok (`logo-tiktok`), and a generic Chain/Link icon (`link`).
+* Remove all text labels (`"YouTube"`, `"Instagram"`, etc.) so all active icons fit cleanly in a single horizontal row without horizontal overflow.
+
+## 2. `"📤 Share Your PinCheck"` Button (`ProfileHeader.js`)
+* Remove `"Share"` from the social icon row.
+* Create a dedicated single-row button labeled **`"📤 Share Your PinCheck"`**.
+* Place it directly beneath the category chips (`Beers` / `Food & Drink`) and immediately above the **`"🗺️ World Map | 📅 Timeline & List"`** toggle.
+
+## 3. Native Share Action (`externalLinks.js`)
+* When **`"📤 Share Your PinCheck"`** is pressed, trigger the native OS share sheet (`Share.share`) using simple text and link (no image attachment):
+  * `Message: "Check out my travel map, passport stamps, and pinned spots on PinCheck! ✈️📍\nhttps://pincheckin.expo.app"`
+
+## 4. Star Ranking Card Layout (`TimelineView.js`)
+* Split each ranking tier into a 2-line structure (**Title** on line 1; **requirement criteria** on line 2 with text-wrap enabled) to prevent horizontal text overflow.
+* Ensure the card container has at least `16px` horizontal padding (`paddingHorizontal: 18`).
+
+## 5. Section Rename (`TimelineView.js` & `PublicProfileView.js`)
+* Rename `"Country Stamp Badges (X)"` to **`"Passport Stamps (X)"`**.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure

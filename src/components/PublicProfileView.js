@@ -255,10 +255,10 @@ export function PublicProfileView({
             </View>
           </View>
 
-          {/* 2. MIDDLE (CONTENT): Country Stamp Badges */}
+          {/* 2. MIDDLE (CONTENT): Passport Stamps */}
           <View style={styles.publicSectionBlock}>
             <Text style={styles.publicSectionTitle}>
-              🛂 Country Stamp Badges ({countryStamps.length})
+              🛂 Passport Stamps ({countryStamps.length})
             </Text>
             <View style={styles.stampGrid}>
               {countryStamps.map((stamp) => (

@@ -1,11 +1,6 @@
 import { Alert, Linking, Share, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import {
-  getUniqueCountriesCount,
-  getUniqueCitiesCount,
-  getUniqueIslandsCount,
-  evaluateStarRanking,
-} from './categories';
+import { evaluateStarRanking } from './categories';
 import { syncPublicProfileToCloud } from '../hooks/usePinCheckData';
 
 const STAY22_AFFILIATE_ID = 'noplancheckin';
@@ -161,21 +156,11 @@ export const shareProfile = async ({
       visitedPlaces,
     });
 
-    const userName = (displayName || 'Traveler').trim();
-    const countriesCount = getUniqueCountriesCount(visitedPlaces);
-    const citiesCount = getUniqueCitiesCount(visitedPlaces);
-    const islandsCount = getUniqueIslandsCount(visitedPlaces);
     const profileUrl = buildProfileShareUrl();
-
-    const message =
-      `Collect your travel stamps with me on PinCheck! ✈️📍\n` +
-      `${userName}'s Map: [${starRanking.starGraphic} ${starRanking.starTitle}] · ${countriesCount} Countries · ${citiesCount} Cities · ${islandsCount} Islands\n` +
-      `See my map & start your own collection: ${profileUrl}`;
+    const message = `Check out my travel map, passport stamps, and pinned spots on PinCheck! ✈️📍\n${profileUrl}`;
 
     await Share.share({
-      title: `${userName}'s Map • PinCheck`,
       message,
-      url: profileUrl,
     });
   } catch (error) {
     console.log('Share error:', error);
