@@ -44,6 +44,78 @@ export const getDestinationEmoji = (type) => {
   return '🏙️';
 };
 
+// 4 Standardized Pin Activity Categories: 'sights' (🏛️), 'food' (🍽️), 'cafes' (☕), 'drinks' (🍺)
+export const PIN_ACTIVITY_CATEGORIES = [
+  { key: 'sights', label: 'Sights', icon: '🏛️' },
+  { key: 'food', label: 'Food', icon: '🍽️' },
+  { key: 'cafes', label: 'Cafes', icon: '☕' },
+  { key: 'drinks', label: 'Drinks', icon: '🍺' },
+];
+
+export const normalizeSpotCategory = (spot) => {
+  if (!spot || typeof spot === 'string') return 'food';
+  const cat = (spot.category || '').trim().toLowerCase();
+  if (cat === 'sights' || cat === 'sight' || cat === 'visit') return 'sights';
+  if (cat === 'cafes' || cat === 'cafe' || cat === 'coffee') return 'cafes';
+  if (cat === 'drinks' || cat === 'drink' || cat === 'beer' || cat === 'bar')
+    return 'drinks';
+  if (cat === 'food' || cat === 'restaurant') return 'food';
+
+  // Smart fallback inference for legacy spots without an explicit category field
+  const lowerName = (spot.name || '').toLowerCase();
+  if (
+    lowerName.includes('cafe') ||
+    lowerName.includes('café') ||
+    lowerName.includes('coffee') ||
+    lowerName.includes('bakery') ||
+    lowerName.includes('brunch')
+  ) {
+    return 'cafes';
+  }
+  if (
+    lowerName.includes('palace') ||
+    lowerName.includes('museum') ||
+    lowerName.includes('castle') ||
+    lowerName.includes('cathedral') ||
+    lowerName.includes('temple') ||
+    lowerName.includes('viewpoint') ||
+    lowerName.includes('monument')
+  ) {
+    return 'sights';
+  }
+  if (
+    lowerName.includes('bar') ||
+    lowerName.includes('pub') ||
+    lowerName.includes('brewery') ||
+    lowerName.includes('taproom')
+  ) {
+    return 'drinks';
+  }
+  return 'food';
+};
+
+export const getSpotCategoryEmoji = (category) => {
+  const normalized =
+    typeof category === 'object'
+      ? normalizeSpotCategory(category)
+      : (category || '').toLowerCase();
+  if (normalized === 'sights') return '🏛️';
+  if (normalized === 'cafes') return '☕';
+  if (normalized === 'drinks') return '🍺';
+  return '🍽️';
+};
+
+export const getSpotCategoryLabel = (category) => {
+  const normalized =
+    typeof category === 'object'
+      ? normalizeSpotCategory(category)
+      : (category || '').toLowerCase();
+  if (normalized === 'sights') return '🏛️ Sights';
+  if (normalized === 'cafes') return '☕ Cafes';
+  if (normalized === 'drinks') return '🍺 Drinks';
+  return '🍽️ Food';
+};
+
 export const getPlaceCitiesList = (place) => {
   const parentCountry = place?.country || '';
   if (Array.isArray(place?.cities) && place.cities.length > 0) {
@@ -132,6 +204,76 @@ export const getUniqueIslandsCount = (visitedPlaces) => {
   });
   return islandSet.size;
 };
+
+// 4 Standardized Activity Category Counters: Sights (🏛️), Food (🍽️), Cafes (☕), Drinks (🍺)
+export const getSightsCount = (visitedPlaces = []) =>
+  visitedPlaces.reduce((sum, place) => {
+    const spots = Array.isArray(place?.foodDrinks) ? place.foodDrinks : [];
+    const sightSpots = spots.filter(
+      (s) => normalizeSpotCategory(s) === 'sights'
+    ).length;
+    return sum + sightSpots;
+  }, 0);
+
+export const getFoodCount = (visitedPlaces = []) =>
+  visitedPlaces.reduce((sum, place) => {
+    const spots = Array.isArray(place?.foodDrinks) ? place.foodDrinks : [];
+    const foodSpots = spots.filter(
+      (s) => normalizeSpotCategory(s) === 'food'
+    ).length;
+    return sum + foodSpots;
+  }, 0);
+
+export const getCafesCount = (visitedPlaces = []) =>
+  visitedPlaces.reduce((sum, place) => {
+    const spots = Array.isArray(place?.foodDrinks) ? place.foodDrinks : [];
+    const cafeSpots = spots.filter(
+      (s) => normalizeSpotCategory(s) === 'cafes'
+    ).length;
+    return sum + cafeSpots;
+  }, 0);
+
+export const getDrinksCount = (visitedPlaces = []) =>
+  visitedPlaces.reduce((sum, place) => {
+    const spots = Array.isArray(place?.foodDrinks) ? place.foodDrinks : [];
+    const drinkSpots = spots.filter(
+      (s) => normalizeSpotCategory(s) === 'drinks'
+    );
+    const drinkSpotCount = drinkSpots.length;
+
+    // Also include legacy standalone beers[] that aren't already counted via a spot's localBeerName or name
+    const countedBeerNames = new Set();
+    spots.forEach((s) => {
+      if (s && typeof s === 'object') {
+        if (s.localBeerName && s.localBeerName.trim()) {
+          countedBeerNames.add(s.localBeerName.trim().toLowerCase());
+        }
+        if (normalizeSpotCategory(s) === 'drinks' && s.name && s.name.trim()) {
+          countedBeerNames.add(s.name.trim().toLowerCase());
+        }
+      }
+    });
+
+    const extraBeersCount = Array.isArray(place?.beers)
+      ? place.beers.filter(
+          (b) =>
+            typeof b === 'string' &&
+            b.trim() &&
+            !countedBeerNames.has(b.trim().toLowerCase())
+        ).length
+      : 0;
+
+    const spotLocalBeersOnNonDrinkSpots = spots.filter(
+      (s) =>
+        s &&
+        typeof s === 'object' &&
+        normalizeSpotCategory(s) !== 'drinks' &&
+        typeof s.localBeerName === 'string' &&
+        s.localBeerName.trim()
+    ).length;
+
+    return sum + drinkSpotCount + extraBeersCount + spotLocalBeersOnNonDrinkSpots;
+  }, 0);
 
 // Total Unique Local Beers Counter across all pins (beers[] + localBeerName on Food & Drink pins)
 export const getTotalBeersCount = (visitedPlaces = []) => {

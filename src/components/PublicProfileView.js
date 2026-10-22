@@ -12,6 +12,12 @@ import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
   getUniqueIslandsCount,
+  getSightsCount,
+  getFoodCount,
+  getCafesCount,
+  getDrinksCount,
+  getSpotCategoryEmoji,
+  getSpotCategoryLabel,
   evaluateStarRanking,
 } from '../utils/categories';
 import {
@@ -40,6 +46,10 @@ export function PublicProfileView({
   const countriesCount = getUniqueCountriesCount(visitedPlaces);
   const citiesCount = getUniqueCitiesCount(visitedPlaces);
   const islandsCount = getUniqueIslandsCount(visitedPlaces);
+  const sightsCount = getSightsCount(visitedPlaces);
+  const foodCount = getFoodCount(visitedPlaces);
+  const cafesCount = getCafesCount(visitedPlaces);
+  const drinksCount = getDrinksCount(visitedPlaces);
   const starRanking = evaluateStarRanking(visitedPlaces);
 
   // Build unique country stamp badges
@@ -104,7 +114,7 @@ export function PublicProfileView({
         spotCards.push({
           key: `${place.id}-food-${idx}`,
           type: 'cafe',
-          badge: '🍽️ Cafe / Food & Drink',
+          badge: `${getSpotCategoryEmoji(spot)} ${getSpotCategoryLabel(spot)}`,
           title: spotName,
           subtitle: [spotCity, place.country].filter(Boolean).join(', '),
           address: spotAddress,
@@ -269,6 +279,34 @@ export function PublicProfileView({
               <View style={styles.publicStatBox}>
                 <Text style={styles.publicStatNumber}>{islandsCount}</Text>
                 <Text style={styles.publicStatLabel}>🏝️ Islands</Text>
+              </View>
+            </View>
+
+            {/* 4-Category Activity Counters in a Balanced 2x2 Grid */}
+            <View style={[styles.tasteChipsGrid, { marginTop: 10, marginBottom: 0 }]}>
+              <View style={styles.tasteChipsRow}>
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText} numberOfLines={1}>
+                    🏛️ {sightsCount} {sightsCount === 1 ? 'Sight' : 'Sights'}
+                  </Text>
+                </View>
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText} numberOfLines={1}>
+                    🍽️ {foodCount} Food
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.tasteChipsRow}>
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText} numberOfLines={1}>
+                    ☕ {cafesCount} {cafesCount === 1 ? 'Cafe' : 'Cafes'}
+                  </Text>
+                </View>
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText} numberOfLines={1}>
+                    🍺 {drinksCount} {drinksCount === 1 ? 'Drink' : 'Drinks'}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>

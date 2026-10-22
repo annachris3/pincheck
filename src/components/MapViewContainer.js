@@ -96,23 +96,35 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
 
           let markersLayer = L.layerGroup().addTo(map);
 
+          function getSpotEmoji(spot) {
+            if (spot && typeof spot === 'object') {
+              const cat = (spot.category || '').toLowerCase();
+              if (cat === 'sights') return '🏛️';
+              if (cat === 'cafes') return '☕';
+              if (cat === 'drinks') return '🍺';
+              if (cat === 'food') return '🍽️';
+            }
+            const name = ((typeof spot === 'string' ? spot : spot && spot.name) || '').toLowerCase();
+            if (/\\b(museum|palace|castle|cathedral|church|temple|monument|tower|park|square|plaza|viewpoint|bridge|fort|ruins|abbey|gallery|basilica|schloss|pantheon|colosseum|acropolis)\\b/i.test(name)) {
+              return '🏛️';
+            }
+            if (/\\b(cafe|café|coffee|bakery|patisserie|konditorei|roastery|espresso|tea house|boulangerie|gelato|ice cream)\\b/i.test(name)) {
+              return '☕';
+            }
+            if (/\\b(bar|pub|brewery|brauerei|bräu|taproom|tavern|wine bar|cocktail|biergarten|beer|club|lounge)\\b/i.test(name)) {
+              return '🍺';
+            }
+            return '🍽️';
+          }
+
           function renderMarkers(places) {
             markersLayer.clearLayers();
             places.forEach(p => {
               const hasBeers = Array.isArray(p.beers) && p.beers.length > 0;
               const spots = Array.isArray(p.foodDrinks) ? p.foodDrinks : [];
-              const hasFood = spots.length > 0;
-
-              let cityEmojis = '📍';
-              if (hasBeers && hasFood) {
-                cityEmojis = '📍🍺🍽️';
-              } else if (hasBeers) {
-                cityEmojis = '📍🍺';
-              } else if (hasFood) {
-                cityEmojis = '📍🍽️';
-              }
-
-              const badgeWidth = cityEmojis.length > 2 ? 54 : 34;
+              const spotEmojisSet = new Set(spots.map(getSpotEmoji));
+              if (hasBeers) spotEmojisSet.add('🍺');
+              const extraEmojis = Array.from(spotEmojisSet).join('');
 
               // 1. Render a pin for EVERY city or island inside this Country check-in
               const citiesList = Array.isArray(p.cities) && p.cities.length > 0
@@ -123,15 +135,8 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
                 const cLat = (typeof c === 'object' && typeof c.lat === 'number') ? c.lat : p.lat;
                 const cLng = (typeof c === 'object' && typeof c.lng === 'number') ? c.lng : p.lng;
                 const basePinEmoji = (typeof c === 'object' && c.type === 'island') ? '🏝️' : '📍';
-                let markerEmojis = basePinEmoji;
-                if (hasBeers && hasFood) {
-                  markerEmojis = basePinEmoji + '🍺🍽️';
-                } else if (hasBeers) {
-                  markerEmojis = basePinEmoji + '🍺';
-                } else if (hasFood) {
-                  markerEmojis = basePinEmoji + '🍽️';
-                }
-                const markerWidth = markerEmojis.length > 2 ? 54 : 34;
+                const markerEmojis = basePinEmoji + extraEmojis;
+                const markerWidth = markerEmojis.length > 2 ? Math.min(82, 26 + markerEmojis.length * 8) : 34;
 
                 if (typeof cLat === 'number' && typeof cLng === 'number') {
                   const cityIcon = L.divIcon({
@@ -152,15 +157,16 @@ export function MapViewContainer({ webViewRef, visitedPlaces, onMapMessage }) {
                 }
               });
 
-              // 2. Exact Pinned 🍽️ Food & Drink places inside this Country/City
+              // 2. Exact Pinned Activity Places (🏛️ Sights, 🍽️ Food, ☕ Cafes, 🍺 Drinks) inside this Country/City
               spots.forEach((spot, idx) => {
                 const name = typeof spot === 'string' ? spot : spot.name;
+                const spotEmoji = getSpotEmoji(spot);
                 const angle = (idx + 1) * (Math.PI / 3);
                 const lat = (spot && typeof spot.lat === 'number') ? spot.lat : (p.lat + 0.008 * Math.cos(angle));
                 const lng = (spot && typeof spot.lng === 'number') ? spot.lng : (p.lng + 0.008 * Math.sin(angle));
 
                 const foodIcon = L.divIcon({
-                  html: "<div class='custom-food-marker'>🍽️</div>",
+                  html: "<div class='custom-food-marker'>" + spotEmoji + "</div>",
                   className: '',
                   iconSize: [32, 32],
                   iconAnchor: [16, 16]

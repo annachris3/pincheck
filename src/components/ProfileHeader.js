@@ -8,8 +8,10 @@ import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
   getUniqueIslandsCount,
-  getTotalBeersCount,
-  getTotalFoodDrinksCount,
+  getSightsCount,
+  getFoodCount,
+  getCafesCount,
+  getDrinksCount,
   evaluateStarRanking,
 } from '../utils/categories';
 
@@ -38,9 +40,11 @@ export function ProfileHeader({
   const uniqueIslands = getUniqueIslandsCount(visitedPlaces);
   const starRanking = evaluateStarRanking(visitedPlaces);
 
-  // Subcategory Totals
-  const beerCount = getTotalBeersCount(visitedPlaces);
-  const foodDrinkCount = getTotalFoodDrinksCount(visitedPlaces);
+  // 4 Standardized Activity Category Counters
+  const sightsCount = getSightsCount(visitedPlaces);
+  const foodCount = getFoodCount(visitedPlaces);
+  const cafesCount = getCafesCount(visitedPlaces);
+  const drinksCount = getDrinksCount(visitedPlaces);
 
   const avatarUri =
     profilePhoto && profilePhoto !== failedUri
@@ -218,15 +222,23 @@ export function ProfileHeader({
         <Text style={styles.macroStatText}>🏝️ {uniqueIslands} Islands</Text>
       </View>
 
-      {/* Subcategory Stats Badges */}
-      <View style={styles.tasteChipsRow}>
-        <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>
-            🍺 {beerCount} Local Beers Tried
-          </Text>
+      {/* 4 Standardized Activity Category Counters (2x2 Balanced Grid) */}
+      <View style={styles.tasteChipsGrid}>
+        <View style={styles.tasteChipsRow}>
+          <View style={styles.tasteChip}>
+            <Text style={styles.tasteChipText}>🏛️ {sightsCount} Sights</Text>
+          </View>
+          <View style={styles.tasteChip}>
+            <Text style={styles.tasteChipText}>🍽️ {foodCount} Food</Text>
+          </View>
         </View>
-        <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>🍽️ {foodDrinkCount} Food & Drink</Text>
+        <View style={styles.tasteChipsRow}>
+          <View style={styles.tasteChip}>
+            <Text style={styles.tasteChipText}>☕ {cafesCount} Cafes</Text>
+          </View>
+          <View style={styles.tasteChip}>
+            <Text style={styles.tasteChipText}>🍺 {drinksCount} Drinks</Text>
+          </View>
         </View>
       </View>
 

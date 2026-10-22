@@ -297,6 +297,32 @@ Evaluate the user's rank based on total confirmed destinations (starting with `�
 
 ---
 
+# Task: Update Pin Activity Categories and Profile Counters
+
+## 1. Replace Existing Place Categories (`src/utils/categories.js`)
+* Deprecate the separate `"Local Beers"` and `"Food & Drink"` chips.
+* Introduce **4 standardized pin activity categories**:
+  * **`"Sights"`** (`'sights'`, icon: `🏛️`) -> Covers monuments, historical spots, viewpoints, museums.
+  * **`"Food"`** (`'food'`, icon: `🍽️`) -> Covers restaurants, street food, markets.
+  * **`"Cafes"`** (`'cafes'`, icon: `☕`) -> Covers coffee shops, bakeries, brunch spots.
+  * **`"Drinks"`** (`'drinks'`, icon: `🍺`) -> Covers local beer, cocktail bars, wine bars, pubs.
+* Backward compatibility via `normalizeSpotCategory(spot)`: automatically classifies existing saved spots into `'sights'`, `'food'`, `'cafes'`, or `'drinks'` when `spot.category` is not explicitly set.
+
+## 2. Pin Creation / Edit Form (`src/components/CheckInModal.js`)
+* When dropping or editing a pin, let the user select one of the **4 primary categories** via a 4-way selector:
+  * `[ 🏛️ Sights ] | [ 🍽️ Food ] | [ ☕ Cafes ] | [ 🍺 Drinks ]`
+* When `"Food"` or `"Drinks"` is selected, display the optional `"🍺 Tried a local beer here? (Optional)"` prompt (`localBeerName`).
+
+## 3. Profile UI Counters (`src/components/ProfileHeader.js` & `src/components/PublicProfileView.js`)
+* Display the 4 counters in a balanced **2x2 grid** (two rows) directly below the geographic counters (`Countries / Cities / Islands`):
+  ```text
+  [ 🏛️ X Sights ]  [ 🍽️ Y Food ]
+  [ ☕ Z Cafes ]   [ 🍺 W Drinks ]
+  ```
+* Keep the **`"📤 Share Your PinCheck"`** button directly below these 4 category chips and immediately above the `"World Map | Timeline & List"` toggle.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure

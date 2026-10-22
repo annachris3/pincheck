@@ -14,7 +14,12 @@ import {
   searchVenueInCity,
   detectDestinationTypeSync,
 } from '../utils/geocoding';
-import { getDestinationEmoji } from '../utils/categories';
+import {
+  getDestinationEmoji,
+  normalizeSpotCategory,
+  getSpotCategoryEmoji,
+  getSpotCategoryLabel,
+} from '../utils/categories';
 
 export function CheckInModal({
   visible,
@@ -36,15 +41,14 @@ export function CheckInModal({
   onSave,
   onDelete,
 }) {
-  // Active tab inside the check-in: 'visit' | 'beer' | 'food'
-  const [activeSubTab, setActiveSubTab] = useState('visit');
+  // 4-Way Primary Activity Category Selector: 'sights' (🏛️) | 'food' (🍽️) | 'cafes' (☕) | 'drinks' (🍺)
+  const [activeSubTab, setActiveSubTab] = useState('sights');
   const [cityInput, setCityInput] = useState('');
   const [destinationType, setDestinationType] = useState('city'); // 'city' | 'island' | 'country'
   const [manualTypeOverride, setManualTypeOverride] = useState(false);
   const [editingCityIndex, setEditingCityIndex] = useState(null);
   const [isLookingUpCity, setIsLookingUpCity] = useState(false);
 
-  const [beerInput, setBeerInput] = useState('');
   const [foodDrinkInput, setFoodDrinkInput] = useState('');
   const [localBeerInput, setLocalBeerInput] = useState('');
   const [foodMonthInput, setFoodMonthInput] = useState('');
@@ -157,36 +161,34 @@ export function CheckInModal({
     }
   };
 
-  const handleAddBeer = () => {
-    const trimmed = beerInput.trim();
-    if (!trimmed) return;
-    setBeers([...beers, trimmed]);
-    setBeerInput('');
-  };
-
   const handleRemoveBeer = (index) => {
     setBeers(beers.filter((_, i) => i !== index));
   };
 
-  // Automatically looks up the address + exact coordinates + saves Month, Year & localBeerName for the Food & Drink spot!
+  // Automatically looks up the address + exact coordinates + saves Category, Month, Year & localBeerName!
+  const handleSelectSpotCategory = (cat) => {
+    setActiveSubTab(cat);
+    if (editingFoodIndex !== null && foodDrinks[editingFoodIndex]) {
+      setFoodDrinks(
+        foodDrinks.map((item, idx) =>
+          idx === editingFoodIndex
+            ? typeof item === 'string'
+              ? { name: item, category: cat }
+              : { ...item, category: cat }
+            : item
+        )
+      );
+    }
+  };
+
   const handleAddFoodDrink = async () => {
     const trimmed = foodDrinkInput.trim();
-    const spotLocalBeer = localBeerInput.trim();
+    const spotLocalBeer =
+      activeSubTab === 'food' || activeSubTab === 'drinks'
+        ? localBeerInput.trim()
+        : '';
 
     if (!trimmed && !spotLocalBeer) return;
-
-    // If user only typed a local beer without a specific venue name, still record it!
-    if (!trimmed && spotLocalBeer) {
-      if (
-        !beers.some(
-          (b) => b.trim().toLowerCase() === spotLocalBeer.toLowerCase()
-        )
-      ) {
-        setBeers([...beers, spotLocalBeer]);
-      }
-      setLocalBeerInput('');
-      return;
-    }
 
     const activeCityName =
       selectedFoodCity ||
@@ -199,24 +201,28 @@ export function CheckInModal({
     const spotYear = foodYearInput.trim() || year.trim() || '2026';
     const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
 
+    // If user entered only a local beer name under Food or Drinks without a venue name, save it as a Drinks pin!
+    const effectiveSpotName = trimmed || spotLocalBeer;
+    const effectiveCategory = !trimmed && spotLocalBeer ? 'drinks' : activeSubTab;
+
     setIsLookingUpSpot(true);
-    const resolved = await searchVenueInCity(
-      trimmed,
-      activeCityName,
-      countryName.trim()
-    );
+    const resolved = trimmed
+      ? await searchVenueInCity(trimmed, activeCityName, countryName.trim())
+      : null;
     setIsLookingUpSpot(false);
 
     const spotObj = resolved
       ? {
           ...resolved,
+          category: effectiveCategory,
           city: activeCityName,
           year: spotYear,
           month: spotMonth,
           localBeerName: spotLocalBeer || '',
         }
       : {
-          name: trimmed,
+          name: effectiveSpotName,
+          category: effectiveCategory,
           city: activeCityName,
           address: [activeCityName, countryName.trim()]
             .filter(Boolean)
@@ -256,11 +262,13 @@ export function CheckInModal({
     if (typeof item === 'string') {
       setFoodDrinkInput(item);
       setLocalBeerInput('');
+      setActiveSubTab('food');
     } else if (item && typeof item === 'object') {
       setFoodDrinkInput(item.name || '');
       setLocalBeerInput(item.localBeerName || '');
       setFoodMonthInput(item.month || '');
       setFoodYearInput(item.year || '');
+      setActiveSubTab(normalizeSpotCategory(item));
       if (item.city) setSelectedFoodCity(item.city);
     }
     setEditingFoodIndex(index);
@@ -334,12 +342,6 @@ export function CheckInModal({
       setManualTypeOverride(false);
     }
 
-    if (beerInput.trim()) {
-      finalBeers = [...finalBeers, beerInput.trim()];
-      setBeers(finalBeers);
-      setBeerInput('');
-    }
-
     if (foodDrinkInput.trim()) {
       const pendingName = foodDrinkInput.trim();
       const activeCityName =
@@ -352,7 +354,10 @@ export function CheckInModal({
 
       const spotYear = foodYearInput.trim() || year.trim() || '2026';
       const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
-      const spotLocalBeer = localBeerInput.trim();
+      const spotLocalBeer =
+        activeSubTab === 'food' || activeSubTab === 'drinks'
+          ? localBeerInput.trim()
+          : '';
 
       setIsLookingUpSpot(true);
       const resolved = await searchVenueInCity(
@@ -365,6 +370,7 @@ export function CheckInModal({
       const newSpot = resolved
         ? {
             ...resolved,
+            category: activeSubTab,
             city: activeCityName,
             year: spotYear,
             month: spotMonth,
@@ -372,6 +378,7 @@ export function CheckInModal({
           }
         : {
             name: pendingName,
+            category: activeSubTab,
             city: activeCityName,
             address: [activeCityName, resolvedCountryName]
               .filter(Boolean)
@@ -613,326 +620,329 @@ export function CheckInModal({
               </View>
             )}
 
-            {/* Step 2: Spot Pins inside this Destination Container */}
+            {/* Step 2: 4-Way Primary Activity Category Selector (Sights, Food, Cafes, Drinks) */}
             <Text style={styles.fieldLabel}>
-              2. Spot Pins Inside Destination:
+              2. Select Pin Category (4-Way Selector):
             </Text>
-            <View style={styles.categoryPickerRow}>
+            <View style={[styles.categoryPickerRow, { gap: 6 }]}>
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  activeSubTab === 'visit' && styles.categoryPillActive,
+                  { paddingHorizontal: 4 },
+                  activeSubTab === 'sights' && styles.categoryPillActive,
                 ]}
-                onPress={() => setActiveSubTab('visit')}
+                onPress={() => handleSelectSpotCategory('sights')}
               >
                 <Text
                   style={[
                     styles.categoryPillText,
-                    activeSubTab === 'visit' && styles.categoryPillTextActive,
+                    { fontSize: 11 },
+                    activeSubTab === 'sights' && styles.categoryPillTextActive,
                   ]}
                 >
-                  📍 Sights / Visit
+                  🏛️ Sights
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  activeSubTab === 'beer' && styles.categoryPillActive,
-                ]}
-                onPress={() => setActiveSubTab('beer')}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    activeSubTab === 'beer' && styles.categoryPillTextActive,
-                  ]}
-                >
-                  🍺 Beer {beers.length > 0 ? `(${beers.length})` : ''}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.categoryPill,
+                  { paddingHorizontal: 4 },
                   activeSubTab === 'food' && styles.categoryPillActive,
                 ]}
-                onPress={() => setActiveSubTab('food')}
+                onPress={() => handleSelectSpotCategory('food')}
               >
                 <Text
                   style={[
                     styles.categoryPillText,
+                    { fontSize: 11 },
                     activeSubTab === 'food' && styles.categoryPillTextActive,
                   ]}
                 >
-                  🍽️ Food & Drink{' '}
-                  {foodDrinks.length > 0 ? `(${foodDrinks.length})` : ''}
+                  🍽️ Food
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  { paddingHorizontal: 4 },
+                  activeSubTab === 'cafes' && styles.categoryPillActive,
+                ]}
+                onPress={() => handleSelectSpotCategory('cafes')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    { fontSize: 11 },
+                    activeSubTab === 'cafes' && styles.categoryPillTextActive,
+                  ]}
+                >
+                  ☕ Cafes
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  { paddingHorizontal: 4 },
+                  activeSubTab === 'drinks' && styles.categoryPillActive,
+                ]}
+                onPress={() => handleSelectSpotCategory('drinks')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    { fontSize: 11 },
+                    activeSubTab === 'drinks' && styles.categoryPillTextActive,
+                  ]}
+                >
+                  🍺 Drinks
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Mode Content */}
-            {activeSubTab === 'visit' && (
-              <View style={styles.subCategoryBox}>
-                <Text style={styles.subCategoryHint}>
-                  ✨ Smart Auto-Detection automatically selects{' '}
-                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
-                    🏝️ Island
-                  </Text>{' '}
-                  (e.g. Santorini, Bali, Ibiza),{' '}
-                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
-                    🌍 Country
-                  </Text>
-                  , or{' '}
-                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
-                    🏙️ City
-                  </Text>
-                  . You can tap any of the 3 buttons above anytime to override!
-                </Text>
-              </View>
-            )}
+            {/* Unified 4-Category Pin Creation / Edit Box */}
+            <View style={styles.subCategoryBox}>
+              <Text style={styles.subCategoryTitle}>
+                {activeSubTab === 'sights'
+                  ? '🏛️ Add Sight (Monument, Historical Spot, Viewpoint, Museum):'
+                  : activeSubTab === 'food'
+                  ? '🍽️ Add Food Spot (Restaurant, Street Food, Market):'
+                  : activeSubTab === 'cafes'
+                  ? '☕ Add Cafe (Coffee Shop, Bakery, Brunch Spot):'
+                  : '🍺 Add Drinks Spot (Local Beer, Cocktail/Wine Bar, Pub):'}
+              </Text>
 
-            {activeSubTab === 'beer' && (
-              <View style={styles.subCategoryBox}>
-                <Text style={styles.subCategoryTitle}>
-                  🍺 Beers tasted in{' '}
-                  {countryName.trim() ? countryName.trim() : 'this country'}:
-                </Text>
-                <View style={styles.inlineAddRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { flex: 1, marginBottom: 0, marginRight: 8 },
-                    ]}
-                    placeholder="Local Beer Name (e.g. Stiegl, Mythos, Peroni)"
-                    placeholderTextColor="#64748b"
-                    value={beerInput}
-                    onChangeText={setBeerInput}
-                    onSubmitEditing={handleAddBeer}
-                  />
-                  <TouchableOpacity
-                    style={styles.inlineAddBtn}
-                    onPress={handleAddBeer}
-                  >
-                    <Text style={styles.inlineAddBtnText}>+ Add</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {beers.length > 0 && (
-                  <View style={styles.addedItemsList}>
-                    {beers.map((item, index) => (
-                      <View
-                        key={`modal-beer-${index}`}
-                        style={styles.addedItemChip}
+              {/* If multiple destinations exist in this country, let user pick which City/Island this pin is in */}
+              {cities.length > 1 && (
+                <View
+                  style={[
+                    styles.addedItemsList,
+                    { marginTop: 0, marginBottom: 8 },
+                  ]}
+                >
+                  {cities.map((c, idx) => {
+                    const cName = typeof c === 'string' ? c : c.name;
+                    const cType =
+                      typeof c === 'object' && c.type
+                        ? c.type
+                        : detectDestinationTypeSync(cName, countryName);
+                    const isSelected =
+                      (selectedFoodCity ||
+                        (typeof cities[0] === 'string'
+                          ? cities[0]
+                          : cities[0].name)) === cName;
+                    return (
+                      <TouchableOpacity
+                        key={`food-city-${idx}`}
+                        style={[
+                          styles.addedItemChip,
+                          isSelected && { backgroundColor: '#38bdf8' },
+                        ]}
+                        onPress={() => setSelectedFoodCity(cName)}
                       >
-                        <Text style={styles.addedItemChipText}>🍺 {item}</Text>
+                        <Text
+                          style={[
+                            styles.addedItemChipText,
+                            isSelected && {
+                              color: '#0f172a',
+                              fontWeight: '800',
+                            },
+                          ]}
+                        >
+                          {getDestinationEmoji(cType)} {cName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Month & Year specifically for this Spot visit (defaults to main Month/Year if left blank) */}
+              <View style={styles.formRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginRight: 8 }]}
+                  placeholder={`Month (${month || 'May'})`}
+                  placeholderTextColor="#64748b"
+                  value={foodMonthInput}
+                  onChangeText={setFoodMonthInput}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder={`Year (${year || '2026'})`}
+                  placeholderTextColor="#64748b"
+                  value={foodYearInput}
+                  onChangeText={setFoodYearInput}
+                />
+              </View>
+
+              {/* Spot / Place Name Input */}
+              <TextInput
+                style={[styles.input, { marginBottom: 8 }]}
+                placeholder={
+                  activeSubTab === 'sights'
+                    ? 'Sight Name (e.g. Schönbrunn Palace, Colosseum, Viewpoint)'
+                    : activeSubTab === 'food'
+                    ? 'Restaurant / Food Spot (e.g. Figlmüller, Night Market)'
+                    : activeSubTab === 'cafes'
+                    ? 'Cafe / Bakery Name (e.g. Café Central, Brunch Spot)'
+                    : 'Bar, Pub, or Drinks Spot (e.g. Wine Bar, Craft Pub)'
+                }
+                placeholderTextColor="#64748b"
+                value={foodDrinkInput}
+                onChangeText={setFoodDrinkInput}
+                onSubmitEditing={
+                  activeSubTab === 'food' || activeSubTab === 'drinks'
+                    ? undefined
+                    : handleAddFoodDrink
+                }
+              />
+
+              {/* Optional Local Beer Prompt (Shown ONLY for Food & Drinks categories) */}
+              {(activeSubTab === 'food' || activeSubTab === 'drinks') && (
+                <>
+                  <Text
+                    style={[
+                      styles.fieldLabel,
+                      { marginTop: 2, marginBottom: 4, color: '#fbbf24' },
+                    ]}
+                  >
+                    🍺 Tried a local beer here? (Optional)
+                  </Text>
+                  <TextInput
+                    style={[styles.input, { marginBottom: 10 }]}
+                    placeholder="Beer name (e.g. Peroni, Mythos, Stiegl)"
+                    placeholderTextColor="#64748b"
+                    value={localBeerInput}
+                    onChangeText={setLocalBeerInput}
+                    onSubmitEditing={handleAddFoodDrink}
+                  />
+                </>
+              )}
+
+              <TouchableOpacity
+                style={[styles.inlineAddBtn, { width: '100%' }]}
+                onPress={handleAddFoodDrink}
+                disabled={isLookingUpSpot}
+              >
+                {isLookingUpSpot ? (
+                  <ActivityIndicator color="#0f172a" size="small" />
+                ) : (
+                  <Text style={styles.inlineAddBtnText}>
+                    {editingFoodIndex !== null
+                      ? `✓ Update ${getSpotCategoryLabel(activeSubTab)} Pin`
+                      : `+ Pin ${getSpotCategoryLabel(activeSubTab)} Spot`}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Added Spot Pins List */}
+              {foodDrinks.length > 0 && (
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  {foodDrinks.map((item, index) => {
+                    const spotName =
+                      typeof item === 'string' ? item : item.name;
+                    const spotCat = normalizeSpotCategory(item);
+                    const spotCatEmoji = getSpotCategoryEmoji(spotCat);
+                    const spotCatLabel = getSpotCategoryLabel(spotCat);
+                    const spotAddress =
+                      typeof item === 'object' && item.address
+                        ? item.address
+                        : null;
+                    const spotLocalBeer =
+                      typeof item === 'object' && item.localBeerName
+                        ? item.localBeerName
+                        : '';
+                    const spotDate =
+                      typeof item === 'object' && (item.month || item.year)
+                        ? [item.month, item.year].filter(Boolean).join(' ')
+                        : [month, year].filter(Boolean).join(' ');
+                    const isEditingSpot = editingFoodIndex === index;
+
+                    return (
+                      <View
+                        key={`modal-fd-${index}`}
+                        style={[
+                          styles.addedItemChip,
+                          {
+                            justifyContent: 'space-between',
+                            borderRadius: 10,
+                            paddingVertical: 8,
+                          },
+                          isEditingSpot && {
+                            borderColor: '#f59e0b',
+                            backgroundColor: '#0f172a',
+                          },
+                        ]}
+                      >
                         <TouchableOpacity
-                          onPress={() => handleRemoveBeer(index)}
+                          style={{ flex: 1, marginRight: 8 }}
+                          onPress={() => handleStartEditFoodDrink(index)}
+                        >
+                          <Text style={styles.addedItemChipText}>
+                            {spotCatEmoji} {spotName}{' '}
+                            <Text
+                              style={{ color: '#38bdf8', fontWeight: '700' }}
+                            >
+                              • {spotCatLabel.replace(/^[^\s]+\s/, '')} •{' '}
+                              {spotDate} ✏️
+                            </Text>
+                          </Text>
+                          {spotAddress ? (
+                            <Text
+                              style={{
+                                color: '#94a3b8',
+                                fontSize: 11,
+                                marginTop: 2,
+                              }}
+                            >
+                              📍 {spotAddress}
+                            </Text>
+                          ) : null}
+                          {spotLocalBeer ? (
+                            <View
+                              style={[
+                                styles.subChipBeer,
+                                { alignSelf: 'flex-start', marginTop: 5 },
+                              ]}
+                            >
+                              <Text style={styles.subChipText}>
+                                🍺 Local Brew: {spotLocalBeer}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveFoodDrink(index)}
                         >
                           <Text style={styles.removeChipX}>✕</Text>
                         </TouchableOpacity>
                       </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {activeSubTab === 'food' && (
-              <View style={styles.subCategoryBox}>
-                <Text style={styles.subCategoryTitle}>
-                  🍽️ Add Food & Drink Spot (with Month & Year):
-                </Text>
-
-                {/* If multiple destinations exist in this country, let user pick which City/Island this place is in */}
-                {cities.length > 1 && (
-                  <View
-                    style={[
-                      styles.addedItemsList,
-                      { marginTop: 0, marginBottom: 8 },
-                    ]}
-                  >
-                    {cities.map((c, idx) => {
-                      const cName = typeof c === 'string' ? c : c.name;
-                      const cType =
-                        typeof c === 'object' && c.type
-                          ? c.type
-                          : detectDestinationTypeSync(cName, countryName);
-                      const isSelected =
-                        (selectedFoodCity ||
-                          (typeof cities[0] === 'string'
-                            ? cities[0]
-                            : cities[0].name)) === cName;
-                      return (
-                        <TouchableOpacity
-                          key={`food-city-${idx}`}
-                          style={[
-                            styles.addedItemChip,
-                            isSelected && { backgroundColor: '#38bdf8' },
-                          ]}
-                          onPress={() => setSelectedFoodCity(cName)}
-                        >
-                          <Text
-                            style={[
-                              styles.addedItemChipText,
-                              isSelected && {
-                                color: '#0f172a',
-                                fontWeight: '800',
-                              },
-                            ]}
-                          >
-                            {getDestinationEmoji(cType)} {cName}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {/* Month & Year specifically for this Food & Drink visit (defaults to main Month/Year if left blank) */}
-                <View style={styles.formRow}>
-                  <TextInput
-                    style={[styles.input, { flex: 1, marginRight: 8 }]}
-                    placeholder={`Month (${month || 'May'})`}
-                    placeholderTextColor="#64748b"
-                    value={foodMonthInput}
-                    onChangeText={setFoodMonthInput}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder={`Year (${year || '2026'})`}
-                    placeholderTextColor="#64748b"
-                    value={foodYearInput}
-                    onChangeText={setFoodYearInput}
-                  />
+                    );
+                  })}
                 </View>
+              )}
 
-                {/* Place / Venue Name Input */}
-                <TextInput
-                  style={[styles.input, { marginBottom: 8 }]}
-                  placeholder="Place Name (e.g. Figlmüller, Café Central)"
-                  placeholderTextColor="#64748b"
-                  value={foodDrinkInput}
-                  onChangeText={setFoodDrinkInput}
-                />
-
-                {/* Optional Local Beer Prompt for Food & Drinks Pins */}
-                <Text
-                  style={[
-                    styles.fieldLabel,
-                    { marginTop: 2, marginBottom: 4, color: '#fbbf24' },
-                  ]}
-                >
-                  🍺 Tried a local beer here? (Optional)
-                </Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 10 }]}
-                  placeholder="Beer name (e.g. Peroni, Mythos, Stiegl)"
-                  placeholderTextColor="#64748b"
-                  value={localBeerInput}
-                  onChangeText={setLocalBeerInput}
-                  onSubmitEditing={handleAddFoodDrink}
-                />
-
-                <TouchableOpacity
-                  style={[styles.inlineAddBtn, { width: '100%' }]}
-                  onPress={handleAddFoodDrink}
-                  disabled={isLookingUpSpot}
-                >
-                  {isLookingUpSpot ? (
-                    <ActivityIndicator color="#0f172a" size="small" />
-                  ) : (
-                    <Text style={styles.inlineAddBtnText}>
-                      {editingFoodIndex !== null
-                        ? '✓ Update Food / Drink Spot'
-                        : '+ Pin Food / Drink Spot'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                {foodDrinks.length > 0 && (
-                  <View style={{ marginTop: 10, gap: 8 }}>
-                    {foodDrinks.map((item, index) => {
-                      const spotName =
-                        typeof item === 'string' ? item : item.name;
-                      const spotAddress =
-                        typeof item === 'object' && item.address
-                          ? item.address
-                          : null;
-                      const spotLocalBeer =
-                        typeof item === 'object' && item.localBeerName
-                          ? item.localBeerName
-                          : '';
-                      const spotDate =
-                        typeof item === 'object' && (item.month || item.year)
-                          ? [item.month, item.year].filter(Boolean).join(' ')
-                          : [month, year].filter(Boolean).join(' ');
-                      const isEditingSpot = editingFoodIndex === index;
-
-                      return (
-                        <View
-                          key={`modal-fd-${index}`}
-                          style={[
-                            styles.addedItemChip,
-                            {
-                              justifyContent: 'space-between',
-                              borderRadius: 10,
-                              paddingVertical: 8,
-                            },
-                            isEditingSpot && {
-                              borderColor: '#f59e0b',
-                              backgroundColor: '#0f172a',
-                            },
-                          ]}
-                        >
-                          <TouchableOpacity
-                            style={{ flex: 1, marginRight: 8 }}
-                            onPress={() => handleStartEditFoodDrink(index)}
-                          >
-                            <Text style={styles.addedItemChipText}>
-                              🍽️ {spotName}{' '}
-                              <Text
-                                style={{ color: '#38bdf8', fontWeight: '700' }}
-                              >
-                                • {spotDate} ✏️
-                              </Text>
-                            </Text>
-                            {spotAddress ? (
-                              <Text
-                                style={{
-                                  color: '#94a3b8',
-                                  fontSize: 11,
-                                  marginTop: 2,
-                                }}
-                              >
-                                📍 {spotAddress}
-                              </Text>
-                            ) : null}
-                            {spotLocalBeer ? (
-                              <View
-                                style={[
-                                  styles.subChipBeer,
-                                  { alignSelf: 'flex-start', marginTop: 5 },
-                                ]}
-                              >
-                                <Text style={styles.subChipText}>
-                                  🍺 Local Brew: {spotLocalBeer}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleRemoveFoodDrink(index)}
-                          >
-                            <Text style={styles.removeChipX}>✕</Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            )}
+              {/* Legacy Standalone Beers Chips (if any exist on this country check-in) */}
+              {beers.length > 0 && (
+                <View style={[styles.addedItemsList, { marginTop: 10 }]}>
+                  {beers.map((item, index) => (
+                    <View
+                      key={`modal-beer-${index}`}
+                      style={styles.addedItemChip}
+                    >
+                      <Text style={styles.addedItemChipText}>
+                        🍺 Local Brew: {item}
+                      </Text>
+                      <TouchableOpacity onPress={() => handleRemoveBeer(index)}>
+                        <Text style={styles.removeChipX}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
 
             {/* Action Buttons */}
             <View style={styles.modalButtons}>

@@ -7,7 +7,12 @@ import {
   openBolt,
   openStay22,
 } from '../utils/externalLinks';
-import { getPlaceCitiesList, getDestinationEmoji } from '../utils/categories';
+import {
+  getPlaceCitiesList,
+  getDestinationEmoji,
+  getSpotCategoryEmoji,
+  getSpotCategoryLabel,
+} from '../utils/categories';
 
 export function ActionSheetModal({
   visible,
@@ -34,6 +39,7 @@ export function ActionSheetModal({
     typeof s === 'string'
       ? {
           name: s,
+          category: undefined,
           city: selectedPlace?.city || '',
           address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
           lat: selectedPlace?.lat,
@@ -44,6 +50,7 @@ export function ActionSheetModal({
         }
       : {
           name: s.name,
+          category: s.category,
           city: s.city || selectedPlace?.city || '',
           address:
             s.address ||
@@ -59,6 +66,7 @@ export function ActionSheetModal({
   const focusedSpot = selectedSpotName
     ? normalizedSpots.find((s) => s.name === selectedSpotName) || {
         name: selectedSpotName,
+        category: 'food',
         city: selectedPlace?.city || '',
         address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
         lat: selectedPlace?.lat,
@@ -72,13 +80,16 @@ export function ActionSheetModal({
       <View style={styles.actionSheetOverlay}>
         <View style={styles.actionSheetContent}>
           {selectedPlace && focusedSpot ? (
-            /* FOCUSED VIEW: A specific Pinned 🍽️ Food & Drink Place */
+            /* FOCUSED VIEW: A specific Pinned Activity Place (🏛️ Sights / 🍽️ Food / ☕ Cafes / 🍺 Drinks) */
             <View style={{ paddingBottom: 18 }}>
               <View style={styles.sheetTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sheetTitle}>🍽️ {focusedSpot.name}</Text>
+                  <Text style={styles.sheetTitle}>
+                    {getSpotCategoryEmoji(focusedSpot)} {focusedSpot.name}
+                  </Text>
                   <Text style={styles.sheetSubtitle}>
-                    📍 {focusedSpot.address}
+                    {getSpotCategoryLabel(focusedSpot)} • 📍{' '}
+                    {focusedSpot.address}
                   </Text>
                   {focusedSpot.localBeerName ? (
                     <View
@@ -314,18 +325,19 @@ export function ActionSheetModal({
                   </View>
                 )}
 
-                {/* Subcategory 2: Pinned Food & Drink Places (Google Maps + Find Stays + Uber + Bolt) */}
+                {/* Subcategory 2: Pinned Activity Places (🏛️ Sights · 🍽️ Food · ☕ Cafes · 🍺 Drinks) */}
                 {normalizedSpots.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
-                      🍽️ Pinned Food & Drink Places in {selectedPlace.country}
+                      📍 Pinned Spots (🏛️ Sights · 🍽️ Food · ☕ Cafes · 🍺 Drinks) in {selectedPlace.country}
                     </Text>
                     {normalizedSpots.map((spot, idx) => (
                       <View key={`sheet-fd-${idx}`} style={styles.spotActionCard}>
                         <Text style={styles.spotActionName}>
-                          📍🍽️ {spot.name}{' '}
+                          {getSpotCategoryEmoji(spot)} {spot.name}{' '}
                           <Text style={{ color: '#38bdf8', fontSize: 12 }}>
-                            • {spot.month} {spot.year}
+                            • {getSpotCategoryLabel(spot)} • {spot.month}{' '}
+                            {spot.year}
                           </Text>
                         </Text>
                         {spot.address ? (
