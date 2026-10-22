@@ -6,7 +6,10 @@ import {
   STORAGE_PROFILE_KEY,
   INITIAL_PLACES,
 } from '../constants/defaultPlaces';
-import { getPlaceCitiesList } from '../utils/categories';
+import {
+  getPlaceCitiesList,
+  evaluateStarRanking,
+} from '../utils/categories';
 
 const CURRENT_SCHEMA_VERSION = 3;
 export const CLOUD_SYNC_TOPIC_URL = 'https://ntfy.sh/pincheckin_anna_sync_v2';
@@ -351,6 +354,7 @@ export function usePinCheckData() {
 
     const saveProfile = async () => {
       try {
+        const starRanking = evaluateStarRanking(visitedPlaces);
         const profileData = {
           profilePhoto,
           displayName,
@@ -360,6 +364,10 @@ export function usePinCheckData() {
           tiktokUser,
           customLinkUrl,
           customLinkLabel,
+          starLevel: starRanking.starLevel,
+          starTitle: starRanking.starTitle,
+          starGraphic: starRanking.starGraphic,
+          starProgressHint: starRanking.progressHint,
           updatedAt: new Date().toISOString(),
         };
         await AsyncStorage.setItem(
@@ -367,7 +375,7 @@ export function usePinCheckData() {
           JSON.stringify(profileData)
         );
 
-        // If on owner's native phone app, also sync to cloud so https://pincheckin.expo.app has latest photo & pins
+        // If on owner's native phone app, also sync to cloud so https://pincheckin.expo.app has latest photo, star rank & pins
         if (Platform.OS !== 'web') {
           await syncPublicProfileToCloud({
             ...profileData,
@@ -394,6 +402,9 @@ export function usePinCheckData() {
     isGuestCreator,
   ]);
 
+  // Automatically evaluated Star Ranking whenever destinations/pins are added, edited, or deleted
+  const starRanking = evaluateStarRanking(visitedPlaces);
+
   return {
     profilePhoto,
     setProfilePhoto,
@@ -413,6 +424,11 @@ export function usePinCheckData() {
     setCustomLinkLabel,
     visitedPlaces,
     setVisitedPlaces,
+    starLevel: starRanking.starLevel,
+    starTitle: starRanking.starTitle,
+    starGraphic: starRanking.starGraphic,
+    starProgressHint: starRanking.progressHint,
+    starRanking,
     isStorageLoaded,
     isReadOnlyViewer,
     isGuestCreator,

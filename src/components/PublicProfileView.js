@@ -12,6 +12,7 @@ import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
   getUniqueIslandsCount,
+  evaluateStarRanking,
 } from '../utils/categories';
 import {
   openStay22,
@@ -38,6 +39,7 @@ export function PublicProfileView({
   const countriesCount = getUniqueCountriesCount(visitedPlaces);
   const citiesCount = getUniqueCitiesCount(visitedPlaces);
   const islandsCount = getUniqueIslandsCount(visitedPlaces);
+  const starRanking = evaluateStarRanking(visitedPlaces);
 
   // Build unique country stamp badges
   const countryStamps = [];
@@ -188,10 +190,50 @@ export function PublicProfileView({
 
               <View style={{ flex: 1 }}>
                 <Text style={styles.publicUserName}>{displayName}</Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '800',
+                    color: '#fbbf24',
+                    marginTop: 2,
+                    marginBottom: 2,
+                  }}
+                >
+                  {starRanking.starGraphic} {starRanking.starTitle}
+                </Text>
                 <Text style={styles.publicHomeLocation}>
                   📍 {homeLocation}
                 </Text>
               </View>
+            </View>
+
+            {/* Public Web Profile Summary Line: [⭐⭐⭐ Globetrotter] · 27 Countries · 42 Cities · 18 Islands */}
+            <View
+              style={{
+                backgroundColor: '#0f172a',
+                borderRadius: 12,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: '#334155',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: '#f8fafc',
+                  fontSize: 13,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}
+              >
+                <Text style={{ color: '#fbbf24', fontWeight: '800' }}>
+                  [{starRanking.starGraphic} {starRanking.starTitle}]
+                </Text>{' '}
+                · {countriesCount} Countries · {citiesCount} Cities ·{' '}
+                {islandsCount} Islands
+              </Text>
             </View>
 
             {/* Total Stats Grid: [X] Countries · [Y] Cities · [Z] Islands */}

@@ -1,5 +1,9 @@
-// Helper utilities for Country Check-ins, Cities, Islands, Local Beers, and Food & Drink spots
+// Helper utilities for Country Check-ins, Cities, Islands, Local Beers, Food & Drink spots, and Star Ranking
 import { detectDestinationTypeSync } from './geocoding';
+import {
+  STAR_RANKING_TIERS,
+  ROOKIE_TIER,
+} from '../constants/starRankingConfig';
 
 const MONTH_ORDER = {
   jan: 1,
@@ -154,3 +158,67 @@ export const getTotalPinsCount = (visitedPlaces) =>
     const beerCount = Array.isArray(place.beers) ? place.beers.length : 0;
     return sum + Math.max(1, citiesCount + foodCount + beerCount);
   }, 0);
+
+/**
+ * Evaluate the user's Star Ranking based on total confirmed destinations.
+ * Checks from highest to lowest (5-Star -> 4-Star -> 3-Star -> 2-Star -> 1-Star -> 0-Star Rookie).
+ */
+export const evaluateStarRanking = (visitedPlaces = []) => {
+  const countriesCount = getUniqueCountriesCount(visitedPlaces);
+  const citiesCount = getUniqueCitiesCount(visitedPlaces);
+  const islandsCount = getUniqueIslandsCount(visitedPlaces);
+
+  let currentTier = ROOKIE_TIER;
+
+  if (countriesCount >= 1) {
+    // Check from highest to lowest (5 -> 4 -> 3 -> 2 -> 1)
+    for (let i = 0; i < STAR_RANKING_TIERS.length; i++) {
+      const tier = STAR_RANKING_TIERS[i];
+      const meetsCountries = countriesCount >= tier.minCountries;
+      const meetsCitiesOrIslands =
+        citiesCount >= tier.minCities || islandsCount >= tier.minIslands;
+
+      if (meetsCountries && meetsCitiesOrIslands) {
+        currentTier = tier;
+        break;
+      }
+    }
+  }
+
+  // Compute one-line progress hint showing remaining gap to the next star rank
+  const nextTier = STAR_RANKING_TIERS.find(
+    (t) => t.stars === currentTier.stars + 1
+  );
+
+  let progressHint = '🏆 Max rank reached: ⭐⭐⭐⭐⭐ World Legend';
+  if (nextTier) {
+    const countriesGap = Math.max(0, nextTier.minCountries - countriesCount);
+    const meetsNextCityOrIsland =
+      citiesCount >= nextTier.minCities || islandsCount >= nextTier.minIslands;
+    const citiesGap = Math.max(0, nextTier.minCities - citiesCount);
+    const islandsGap = Math.max(0, nextTier.minIslands - islandsCount);
+
+    const countryWord = countriesGap === 1 ? 'country' : 'countries';
+    const cityWord = citiesGap === 1 ? 'city' : 'cities';
+    const islandWord = islandsGap === 1 ? 'island' : 'islands';
+
+    if (countriesGap > 0 && meetsNextCityOrIsland) {
+      progressHint = `${countriesGap} more ${countryWord} to reach ${nextTier.starGraphic} ${nextTier.title}`;
+    } else if (countriesGap === 0 && !meetsNextCityOrIsland) {
+      progressHint = `${citiesGap} more ${cityWord} (or ${islandsGap} ${islandWord}) to reach ${nextTier.starGraphic} ${nextTier.title}`;
+    } else {
+      progressHint = `${countriesGap} more ${countryWord} & ${citiesGap} ${cityWord} (or ${islandsGap} ${islandWord}) to reach ${nextTier.starGraphic} ${nextTier.title}`;
+    }
+  }
+
+  return {
+    starLevel: currentTier.stars,
+    starTitle: currentTier.title,
+    starGraphic: currentTier.starGraphic,
+    badgeText: `${currentTier.starGraphic} ${currentTier.title}`,
+    progressHint,
+    countriesCount,
+    citiesCount,
+    islandsCount,
+  };
+};

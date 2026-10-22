@@ -4,6 +4,7 @@ import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
   getUniqueIslandsCount,
+  evaluateStarRanking,
 } from './categories';
 import { syncPublicProfileToCloud } from '../hooks/usePinCheckData';
 
@@ -141,7 +142,9 @@ export const shareProfile = async ({
   visitedPlaces,
 }) => {
   try {
-    // Sync latest profile + photo + pins to cloud in background so Share sheet opens immediately
+    const starRanking = evaluateStarRanking(visitedPlaces);
+
+    // Sync latest profile + photo + star rank + pins to cloud in background so Share sheet opens immediately
     syncPublicProfileToCloud({
       profilePhoto,
       displayName,
@@ -151,6 +154,10 @@ export const shareProfile = async ({
       tiktokUser,
       customLinkUrl,
       customLinkLabel,
+      starLevel: starRanking.starLevel,
+      starTitle: starRanking.starTitle,
+      starGraphic: starRanking.starGraphic,
+      starProgressHint: starRanking.progressHint,
       visitedPlaces,
     });
 
@@ -162,7 +169,7 @@ export const shareProfile = async ({
 
     const message =
       `Collect your travel stamps with me on PinCheck! ✈️📍\n` +
-      `${userName}'s Map: ${countriesCount} Countries · ${citiesCount} Cities · ${islandsCount} Islands\n` +
+      `${userName}'s Map: [${starRanking.starGraphic} ${starRanking.starTitle}] · ${countriesCount} Countries · ${citiesCount} Cities · ${islandsCount} Islands\n` +
       `See my map & start your own collection: ${profileUrl}`;
 
     await Share.share({

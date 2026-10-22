@@ -8,6 +8,7 @@ import {
   getUniqueIslandsCount,
   getTotalBeersCount,
   getTotalFoodDrinksCount,
+  evaluateStarRanking,
 } from '../utils/categories';
 
 export function ProfileHeader({
@@ -29,10 +30,11 @@ export function ProfileHeader({
 }) {
   const [failedUri, setFailedUri] = useState(null);
 
-  // Derived Macro Stats (Mutually Exclusive: Countries, Cities, Islands)
+  // Derived Macro Stats (Mutually Exclusive: Countries, Cities, Islands) & Star Ranking
   const uniqueCountries = getUniqueCountriesCount(visitedPlaces);
   const uniqueCities = getUniqueCitiesCount(visitedPlaces);
   const uniqueIslands = getUniqueIslandsCount(visitedPlaces);
+  const starRanking = evaluateStarRanking(visitedPlaces);
 
   // Subcategory Totals
   const beerCount = getTotalBeersCount(visitedPlaces);
@@ -65,7 +67,7 @@ export function ProfileHeader({
           )}
         </TouchableOpacity>
 
-        {/* User Name & Lowercase Blue pincheck */}
+        {/* User Name, Star Ranking + Progress Hint, & Home Location */}
         <TouchableOpacity
           disabled={readOnly}
           style={styles.profileTextContainer}
@@ -76,6 +78,30 @@ export function ProfileHeader({
             <Text style={styles.displayName}>{displayName}</Text>
             {!readOnly && <Text style={styles.editIconHint}>✏️</Text>}
           </View>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '800',
+              color: '#fbbf24',
+              marginTop: 2,
+            }}
+          >
+            {starRanking.starGraphic} {starRanking.starTitle}
+          </Text>
+          {!readOnly && (
+            <Text
+              style={{
+                fontSize: 11,
+                color: '#94a3b8',
+                fontWeight: '600',
+                marginTop: 1,
+                marginBottom: 2,
+              }}
+              numberOfLines={1}
+            >
+              {starRanking.progressHint}
+            </Text>
+          )}
           <Text style={styles.appBrandLowercase}>pincheck</Text>
           <Text style={styles.homeLocation}>📍 {homeLocation}</Text>
         </TouchableOpacity>
@@ -137,8 +163,21 @@ export function ProfileHeader({
         )}
       </View>
 
-      {/* Passport Stats Strip: [X] Countries · [Y] Cities · [Z] Islands */}
-      <View style={styles.macroStatsRow}>
+      {/* Passport Stats Strip: [⭐⭐⭐ Globetrotter] · [X] Countries · [Y] Cities · [Z] Islands */}
+      <View
+        style={[
+          styles.macroStatsRow,
+          { flexWrap: 'wrap', rowGap: 4, paddingHorizontal: 10 },
+        ]}
+      >
+        {readOnly && (
+          <>
+            <Text style={[styles.macroStatText, { color: '#fbbf24' }]}>
+              [{starRanking.starGraphic} {starRanking.starTitle}]
+            </Text>
+            <Text style={styles.statDot}>·</Text>
+          </>
+        )}
         <Text style={styles.macroStatText}>🌍 {uniqueCountries} Countries</Text>
         <Text style={styles.statDot}>·</Text>
         <Text style={styles.macroStatText}>🏙️ {uniqueCities} Cities</Text>

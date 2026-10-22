@@ -214,6 +214,36 @@ See my map & start your own collection: [Profile_URL]
 
 ---
 
+# Task: Star Ranking System & Progress Display
+
+## Step 1: Define the Star Ranking Rules
+Evaluate the user's rank based on total confirmed destinations:
+* **0 Stars (`Rookie`):** Less than 1 country (or has not yet reached 1-Star thresholds).
+* **⭐ 1 Star (`Explorer`):** Reached **1 to 4 Countries**, AND at least **5 Cities** (or **1 Island**).
+* **⭐⭐ 2 Stars (`Voyager`):** Reached **5 to 14 Countries**, AND at least **15 Cities** (or **3 Islands**).
+* **⭐⭐⭐ 3 Stars (`Globetrotter`):** Reached **15 to 29 Countries**, AND at least **35 Cities** (or **8 Islands**).
+* **⭐⭐⭐⭐ 4 Stars (`Nomad`):** Reached **30 to 49 Countries**, AND at least **75 Cities** (or **15 Islands**).
+* **⭐⭐⭐⭐⭐ 5 Stars (`World Legend`):** Reached **50+ Countries**, AND at least **120 Cities** (or **25 Islands**).
+
+## Step 2: Implement the Evaluation Logic
+* Run `evaluateStarRanking(visitedPlaces)` (`src/utils/categories.js`) automatically whenever a user adds, edits, or deletes a destination or pin.
+* Check from highest to lowest: test if the user meets the **5-Star** criteria first; if not, check **4-Star**, down to **1-Star** (and **0-Star Rookie**).
+* Store the resulting `starLevel` (`0` to `5`), `starTitle`, `starGraphic`, and `starProgressHint` directly on the user profile record (`usePinCheckData.js`).
+
+## Step 3: Profile & Web Card Display
+* **Mobile App Profile Screen (`ProfileHeader.js`):**
+  * Display the star graphic and title directly beneath the user's name: `⭐⭐⭐ Globetrotter`
+  * Display a one-line progress hint beneath it showing the remaining gap (e.g., `"3 more countries to reach ⭐⭐⭐⭐ Nomad"`).
+* **Public Web Profile Card (`ProfileHeader.js` read-only mode & `PublicProfileView.js`):**
+  * Display the star rating and title alongside the counters:
+    `[⭐⭐⭐ Globetrotter] · 27 Countries · 42 Cities · 18 Islands`
+
+## Step 4: Make Values Easily Configurable
+* Store all tier thresholds (`minCountries`, `maxCountries`, `minCities`, `minIslands`, `stars`, `starGraphic`, `title`) in a dedicated configuration file: `src/constants/starRankingConfig.js`.
+* Allows raising or lowering requirements at any time without rewriting core app logic.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure
@@ -221,21 +251,22 @@ See my map & start your own collection: [Profile_URL]
 ```text
 src/
 ├── components/
-│   ├── ProfileHeader.js       # Avatar, profile details, social links, Share Profile trigger, macro/taste stats, tabs
+│   ├── ProfileHeader.js       # Avatar, profile details, Star Ranking + progress hint, social links, Share trigger, stats, tabs
 │   ├── MapViewContainer.js    # Leaflet WebView + map HTML template
-│   ├── TimelineView.js        # Chronological timeline grouped by year with country/city badges & Find Stays
-│   ├── PublicProfileView.js   # Read-only responsive Public Web Profile Card with country stamps, Stay22, & sticky CTA
+│   ├── TimelineView.js        # Chronological timeline grouped by year with country/city/island badges & Find Stays
+│   ├── PublicProfileView.js   # Read-only responsive Public Web Profile Card with Star Ranking, stamps, Stay22, & sticky CTA
 │   ├── ActionSheetModal.js    # Venue details, Google Maps / Find Stays (Stay22) / Uber / Bolt buttons, Edit trigger
-│   ├── CheckInModal.js        # Dynamic Check-in form with multi-city, country beers, & auto-geocoded food spots
-│   └── EditProfileModal.js    # Profile, social links, & JSON Backup/Restore modal
+│   ├── CheckInModal.js        # Dynamic Check-in form with 3-button City/Island/Country selector, beers, & food spots
+│   └── EditProfileModal.js    # Profile, social links, Linktree helper, & JSON Backup/Restore modal
 ├── constants/
-│   └── defaultPlaces.js       # Initial seed places & storage keys
+│   ├── defaultPlaces.js       # Initial seed places & storage keys
+│   └── starRankingConfig.js   # Dedicated configurable thresholds for 0–5 Star Ranking tiers
 ├── hooks/
-│   └── usePinCheckData.js     # Custom hook managing AsyncStorage persistence, backup/restore & schema migration
+│   └── usePinCheckData.js     # Custom hook managing AsyncStorage persistence, Star Ranking sync, backup/restore & schema migration
 ├── styles/
 │   └── styles.js              # Centralized StyleSheet definitions
 └── utils/
-    ├── categories.js          # Category counters & multi-city helpers
+    ├── categories.js          # Category counters, multi-city/island helpers, & evaluateStarRanking
     ├── externalLinks.js       # openSocial, openInGoogleMaps, openStay22, openUber, openBolt, shareProfile, buildProfileShareUrl
-    └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates & searchVenueInCity helpers
+    └── geocoding.js           # OpenStreetMap Nominatim fetchCoordinates, auto-detection & searchVenueInCity helpers
 ```
