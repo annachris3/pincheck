@@ -230,10 +230,13 @@ Evaluate the user's rank based on total confirmed destinations:
 * Check from highest to lowest: test if the user meets the **5-Star** criteria first; if not, check **4-Star**, down to **1-Star** (and **0-Star Rookie**).
 * Store the resulting `starLevel` (`0` to `5`), `starTitle`, `starGraphic`, and `starProgressHint` directly on the user profile record (`usePinCheckData.js`).
 
-## Step 3: Profile & Web Card Display
+## Step 3: Profile, Timeline & Web Card Display
 * **Mobile App Profile Screen (`ProfileHeader.js`):**
-  * Display the star graphic and title directly beneath the user's name: `⭐⭐⭐ Globetrotter`
-  * Display a one-line progress hint beneath it showing the remaining gap (e.g., `"3 more countries to reach ⭐⭐⭐⭐ Nomad"`).
+  * Display the star graphic and badge title directly between `pincheck` and the profile local (`📍 {homeLocation}`):
+    `⭐⭐⭐ Globetrotter`
+* **Timeline & List Screen (`TimelineView.js`):**
+  * Top helper text reads `"💡 Tap any card to see spots, beers, Maps & Stays"`.
+  * Includes the **Traveler Star Ranking & Badges** explanation card showing the user's current rank, the one-line progress hint (e.g., `"3 more countries to reach ⭐⭐⭐⭐ Nomad"`), and the full breakdown of all star tiers (`Rookie` through `World Legend`).
 * **Public Web Profile Card (`ProfileHeader.js` read-only mode & `PublicProfileView.js`):**
   * Display the star rating and title alongside the counters:
     `[⭐⭐⭐ Globetrotter] · 27 Countries · 42 Cities · 18 Islands`

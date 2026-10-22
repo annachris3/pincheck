@@ -5,7 +5,12 @@ import {
   getPlaceCitiesList,
   getMonthOrder,
   getDestinationEmoji,
+  evaluateStarRanking,
 } from '../utils/categories';
+import {
+  STAR_RANKING_TIERS,
+  ROOKIE_TIER,
+} from '../constants/starRankingConfig';
 
 export function TimelineView({
   visitedPlaces,
@@ -13,6 +18,9 @@ export function TimelineView({
   onEditPlace,
   readOnly = false,
 }) {
+  const starRanking = evaluateStarRanking(visitedPlaces);
+  const allStarTiersAsc = [ROOKIE_TIER, ...[...STAR_RANKING_TIERS].reverse()];
+
   // Build unique country stamp badges
   const countryStamps = [];
   const seenCountries = new Set();
@@ -143,8 +151,102 @@ export function TimelineView({
   return (
     <ScrollView style={styles.timelineContainer}>
       <Text style={styles.timelineHelp}>
-        💡 Sorted oldest to newest • Tap any card to see spots, beers, Maps & Stays
+        💡 Tap any card to see spots, beers, Maps & Stays
       </Text>
+
+      {/* Star Ranking & Badge Name Explanation */}
+      <View style={styles.publicSectionBlock}>
+        <Text style={styles.publicSectionTitle}>
+          ⭐ Traveler Star Ranking & Badges
+        </Text>
+        <View
+          style={{
+            backgroundColor: '#1e293b',
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: '#334155',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <Text style={{ color: '#fbbf24', fontSize: 15, fontWeight: '800' }}>
+              Current Rank: {starRanking.starGraphic} {starRanking.starTitle}
+            </Text>
+          </View>
+          <Text
+            style={{
+              color: '#38bdf8',
+              fontSize: 12,
+              fontWeight: '700',
+              marginBottom: 10,
+            }}
+          >
+            🎯 {starRanking.progressHint}
+          </Text>
+
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: '#334155',
+              paddingTop: 8,
+              gap: 5,
+            }}
+          >
+            {allStarTiersAsc.map((tier) => {
+              const isCurrent = tier.stars === starRanking.starLevel;
+              const ruleText =
+                tier.stars === 0
+                  ? 'Less than 1 country'
+                  : tier.maxCountries
+                  ? `${tier.minCountries}–${tier.maxCountries} Countries + ${tier.minCities} Cities (or ${tier.minIslands} ${tier.minIslands === 1 ? 'Island' : 'Islands'})`
+                  : `${tier.minCountries}+ Countries + ${tier.minCities} Cities (or ${tier.minIslands} Islands)`;
+
+              return (
+                <View
+                  key={`rank-tier-${tier.stars}`}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: isCurrent
+                      ? 'rgba(251, 191, 36, 0.12)'
+                      : 'transparent',
+                    paddingVertical: 4,
+                    paddingHorizontal: 6,
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isCurrent ? '#fbbf24' : '#e2e8f0',
+                      fontSize: 12,
+                      fontWeight: isCurrent ? '800' : '700',
+                    }}
+                  >
+                    {tier.starGraphic} {tier.title}
+                  </Text>
+                  <Text
+                    style={{
+                      color: isCurrent ? '#f8fafc' : '#94a3b8',
+                      fontSize: 11,
+                      fontWeight: isCurrent ? '700' : '500',
+                    }}
+                  >
+                    {ruleText}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
 
       {/* Country Stamp Badges */}
       {countryStamps.length > 0 && (

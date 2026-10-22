@@ -67,7 +67,7 @@ export function ProfileHeader({
           )}
         </TouchableOpacity>
 
-        {/* User Name, Star Ranking + Progress Hint, & Home Location */}
+        {/* User Name -> pincheck -> Stars & Badge Name -> Profile Local */}
         <TouchableOpacity
           disabled={readOnly}
           style={styles.profileTextContainer}
@@ -78,31 +78,17 @@ export function ProfileHeader({
             <Text style={styles.displayName}>{displayName}</Text>
             {!readOnly && <Text style={styles.editIconHint}>✏️</Text>}
           </View>
+          <Text style={styles.appBrandLowercase}>pincheck</Text>
           <Text
             style={{
               fontSize: 13,
               fontWeight: '800',
               color: '#fbbf24',
-              marginTop: 2,
+              marginBottom: 2,
             }}
           >
             {starRanking.starGraphic} {starRanking.starTitle}
           </Text>
-          {!readOnly && (
-            <Text
-              style={{
-                fontSize: 11,
-                color: '#94a3b8',
-                fontWeight: '600',
-                marginTop: 1,
-                marginBottom: 2,
-              }}
-              numberOfLines={1}
-            >
-              {starRanking.progressHint}
-            </Text>
-          )}
-          <Text style={styles.appBrandLowercase}>pincheck</Text>
           <Text style={styles.homeLocation}>📍 {homeLocation}</Text>
         </TouchableOpacity>
       </View>
