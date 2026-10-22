@@ -275,14 +275,12 @@ export function ActionSheetModal({
                 {beers.length > 0 && (
                   <View style={styles.sheetSectionBox}>
                     <Text style={styles.sheetSectionTitle}>
-                      🍺 Local Beers ({selectedPlace.country})
+                      🍺 Beers tasted in {selectedPlace.country}
                     </Text>
                     <View style={styles.subChipsWrap}>
                       {beers.map((beer, idx) => (
                         <View key={`sheet-beer-${idx}`} style={styles.subChipBeer}>
-                          <Text style={styles.subChipText}>
-                            🍺 {beer} tasted in {selectedPlace.country}
-                          </Text>
+                          <Text style={styles.subChipText}>🍺 {beer}</Text>
                         </View>
                       ))}
                     </View>

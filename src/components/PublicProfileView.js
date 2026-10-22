@@ -112,7 +112,7 @@ export function PublicProfileView({
         if (!beer) return;
         beerStamps.push({
           key: `${place.id}-beer-${idx}`,
-          label: `🍺 ${beer} tasted in ${place.country}`,
+          label: `🍺 ${beer}`,
         });
       });
     }

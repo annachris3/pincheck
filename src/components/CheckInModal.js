@@ -426,7 +426,7 @@ export function CheckInModal({
             {activeSubTab === 'beer' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryTitle}>
-                  🍺 Add Local Beer for {countryName ? countryName : 'this country'}:
+                  🍺 Beers tasted in {countryName.trim() ? countryName.trim() : 'this country'}:
                 </Text>
                 <View style={styles.inlineAddRow}>
                   <TextInput
@@ -446,10 +446,7 @@ export function CheckInModal({
                   <View style={styles.addedItemsList}>
                     {beers.map((item, index) => (
                       <View key={`modal-beer-${index}`} style={styles.addedItemChip}>
-                        <Text style={styles.addedItemChipText}>
-                          🍺 {item}
-                          {countryName.trim() ? ` tasted in ${countryName.trim()}` : ''}
-                        </Text>
+                        <Text style={styles.addedItemChipText}>🍺 {item}</Text>
                         <TouchableOpacity onPress={() => handleRemoveBeer(index)}>
                           <Text style={styles.removeChipX}>✕</Text>
                         </TouchableOpacity>
