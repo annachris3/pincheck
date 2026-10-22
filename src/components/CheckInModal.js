@@ -39,10 +39,12 @@ export function CheckInModal({
 
   const [beerInput, setBeerInput] = useState('');
   const [foodDrinkInput, setFoodDrinkInput] = useState('');
+  const [foodMonthInput, setFoodMonthInput] = useState('');
+  const [foodYearInput, setFoodYearInput] = useState('');
   const [selectedFoodCity, setSelectedFoodCity] = useState('');
   const [isLookingUpSpot, setIsLookingUpSpot] = useState(false);
 
-  // Add or update a City (always fetches fresh coordinates when added or edited!)
+  // Add or update a City (always fetches fresh coordinates & saves its visit Month + Year)
   const handleAddOrUpdateCity = async () => {
     const trimmedCity = cityInput.trim();
     if (!trimmedCity) return;
@@ -56,6 +58,8 @@ export function CheckInModal({
       name: trimmedCity,
       lat: coords ? coords.lat : null,
       lng: coords ? coords.lng : null,
+      year: year.trim() || '2026',
+      month: month.trim() || 'May',
     };
 
     if (editingCityIndex !== null) {
@@ -73,6 +77,10 @@ export function CheckInModal({
   const handleStartEditCity = (index) => {
     const c = cities[index];
     setCityInput(typeof c === 'string' ? c : c.name);
+    if (typeof c === 'object') {
+      if (c.year) setYear(c.year);
+      if (c.month) setMonth(c.month);
+    }
     setEditingCityIndex(index);
   };
 
@@ -95,7 +103,7 @@ export function CheckInModal({
     setBeers(beers.filter((_, i) => i !== index));
   };
 
-  // Automatically looks up the address + exact coordinates from just the place name + city + country!
+  // Automatically looks up the address + exact coordinates + saves Month & Year for the Food & Drink spot!
   const handleAddFoodDrink = async () => {
     const trimmed = foodDrinkInput.trim();
     if (!trimmed) return;
@@ -108,6 +116,9 @@ export function CheckInModal({
           : cities[0].name
         : cityInput.trim());
 
+    const spotYear = (foodYearInput.trim() || year.trim() || '2026');
+    const spotMonth = (foodMonthInput.trim() || month.trim() || 'May');
+
     setIsLookingUpSpot(true);
     const resolved = await searchVenueInCity(
       trimmed,
@@ -117,7 +128,15 @@ export function CheckInModal({
     setIsLookingUpSpot(false);
 
     if (resolved) {
-      setFoodDrinks([...foodDrinks, { ...resolved, city: activeCityName }]);
+      setFoodDrinks([
+        ...foodDrinks,
+        {
+          ...resolved,
+          city: activeCityName,
+          year: spotYear,
+          month: spotMonth,
+        },
+      ]);
     } else {
       setFoodDrinks([
         ...foodDrinks,
@@ -127,10 +146,14 @@ export function CheckInModal({
           address: [activeCityName, countryName.trim()].filter(Boolean).join(', '),
           lat: null,
           lng: null,
+          year: spotYear,
+          month: spotMonth,
         },
       ]);
     }
     setFoodDrinkInput('');
+    setFoodMonthInput('');
+    setFoodYearInput('');
   };
 
   const handleRemoveFoodDrink = (index) => {
@@ -156,6 +179,8 @@ export function CheckInModal({
         name: pendingCityName,
         lat: coords ? coords.lat : null,
         lng: coords ? coords.lng : null,
+        year: year.trim() || '2026',
+        month: month.trim() || 'May',
       };
 
       if (editingCityIndex !== null) {
@@ -186,6 +211,9 @@ export function CheckInModal({
             : finalCities[0].name
           : '');
 
+      const spotYear = (foodYearInput.trim() || year.trim() || '2026');
+      const spotMonth = (foodMonthInput.trim() || month.trim() || 'May');
+
       setIsLookingUpSpot(true);
       const resolved = await searchVenueInCity(
         pendingName,
@@ -195,17 +223,26 @@ export function CheckInModal({
       setIsLookingUpSpot(false);
 
       const newSpot = resolved
-        ? { ...resolved, city: activeCityName }
+        ? {
+            ...resolved,
+            city: activeCityName,
+            year: spotYear,
+            month: spotMonth,
+          }
         : {
             name: pendingName,
             city: activeCityName,
             address: [activeCityName, countryName.trim()].filter(Boolean).join(', '),
             lat: null,
             lng: null,
+            year: spotYear,
+            month: spotMonth,
           };
       finalFoodDrinks = [...finalFoodDrinks, newSpot];
       setFoodDrinks(finalFoodDrinks);
       setFoodDrinkInput('');
+      setFoodMonthInput('');
+      setFoodYearInput('');
     }
 
     onSave(finalCities, finalBeers, finalFoodDrinks);
@@ -230,8 +267,10 @@ export function CheckInModal({
               )}
             </View>
 
-            {/* Step 1: Country & Multiple Cities */}
-            <Text style={styles.fieldLabel}>1. Country & Visited Cities:</Text>
+            {/* Step 1: Country, Date & Multiple Cities */}
+            <Text style={styles.fieldLabel}>
+              1. Country, Visit Date & Cities (repeat countries merge automatically!):
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="Country (e.g. Austria, Slovenia, Poland)"
@@ -239,6 +278,23 @@ export function CheckInModal({
               value={countryName}
               onChangeText={setCountryName}
             />
+
+            <View style={styles.formRow}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 8 }]}
+                placeholder="Month (e.g. May)"
+                placeholderTextColor="#64748b"
+                value={month}
+                onChangeText={setMonth}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Year (e.g. 2026)"
+                placeholderTextColor="#64748b"
+                value={year}
+                onChangeText={setYear}
+              />
+            </View>
 
             {/* Multi-City Input Row */}
             <View style={[styles.inlineAddRow, { marginBottom: 10 }]}>
@@ -270,6 +326,10 @@ export function CheckInModal({
               <View style={[styles.addedItemsList, { marginTop: 0, marginBottom: 12 }]}>
                 {cities.map((c, idx) => {
                   const cName = typeof c === 'string' ? c : c.name;
+                  const cDate =
+                    typeof c === 'object' && (c.month || c.year)
+                      ? ` (${[c.month, c.year].filter(Boolean).join(' ')})`
+                      : '';
                   const isBeingEdited = editingCityIndex === idx;
                   return (
                     <View
@@ -284,7 +344,8 @@ export function CheckInModal({
                     >
                       <TouchableOpacity onPress={() => handleStartEditCity(idx)}>
                         <Text style={styles.addedItemChipText}>
-                          📍 {cName} ✏️
+                          📍 {cName}
+                          {cDate} ✏️
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => handleRemoveCity(idx)}>
@@ -295,23 +356,6 @@ export function CheckInModal({
                 })}
               </View>
             )}
-
-            <View style={styles.formRow}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                placeholder="Year (e.g. 2026)"
-                placeholderTextColor="#64748b"
-                value={year}
-                onChangeText={setYear}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Month (e.g. May)"
-                placeholderTextColor="#64748b"
-                value={month}
-                onChangeText={setMonth}
-              />
-            </View>
 
             {/* Step 2: Just Visit (📍) or Add Subcategories */}
             <Text style={styles.fieldLabel}>
@@ -374,10 +418,7 @@ export function CheckInModal({
             {activeSubTab === 'visit' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryHint}>
-                  📍 Every city you add above gets pinned on your map! Tap any city chip (
-                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>📍 City ✏️</Text>
-                  ) to rename it and automatically move its pin on the map, or add more cities with{' '}
-                  <Text style={{ color: '#38bdf8', fontWeight: '700' }}>+ City</Text>.
+                  📍 Set the <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Month & Year</Text> above before adding a city or repeat visit! If you visit the same country again later, just add the new city/date—it will appear in your Timeline under that Month & Year without duplicating the country.
                 </Text>
               </View>
             )}
@@ -422,7 +463,7 @@ export function CheckInModal({
             {activeSubTab === 'food' && (
               <View style={styles.subCategoryBox}>
                 <Text style={styles.subCategoryTitle}>
-                  🍽️ Type Place Name (we find the address & pin it automatically!):
+                  🍽️ Add Food & Drink Spot (with Month & Year):
                 </Text>
 
                 {/* If multiple cities exist in this country, let user pick which city this place is in */}
@@ -456,6 +497,24 @@ export function CheckInModal({
                   </View>
                 )}
 
+                {/* Month & Year specifically for this Food & Drink visit (defaults to main Month/Year if left blank) */}
+                <View style={styles.formRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginRight: 8 }]}
+                    placeholder={`Month (${month || 'May'})`}
+                    placeholderTextColor="#64748b"
+                    value={foodMonthInput}
+                    onChangeText={setFoodMonthInput}
+                  />
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder={`Year (${year || '2026'})`}
+                    placeholderTextColor="#64748b"
+                    value={foodYearInput}
+                    onChangeText={setFoodYearInput}
+                  />
+                </View>
+
                 <View style={styles.inlineAddRow}>
                   <TextInput
                     style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
@@ -484,6 +543,10 @@ export function CheckInModal({
                       const spotName = typeof item === 'string' ? item : item.name;
                       const spotAddress =
                         typeof item === 'object' && item.address ? item.address : null;
+                      const spotDate =
+                        typeof item === 'object' && (item.month || item.year)
+                          ? [item.month, item.year].filter(Boolean).join(' ')
+                          : [month, year].filter(Boolean).join(' ');
 
                       return (
                         <View
@@ -498,7 +561,12 @@ export function CheckInModal({
                           ]}
                         >
                           <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={styles.addedItemChipText}>🍽️ {spotName}</Text>
+                            <Text style={styles.addedItemChipText}>
+                              🍽️ {spotName}{' '}
+                              <Text style={{ color: '#38bdf8', fontWeight: '700' }}>
+                                • {spotDate}
+                              </Text>
+                            </Text>
                             {spotAddress ? (
                               <Text
                                 style={{

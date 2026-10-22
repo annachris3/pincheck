@@ -32,6 +32,8 @@ export function ActionSheetModal({
           address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
           lat: selectedPlace?.lat,
           lng: selectedPlace?.lng,
+          year: selectedPlace?.year || '2026',
+          month: selectedPlace?.month || 'May',
         }
       : {
           name: s.name,
@@ -41,6 +43,8 @@ export function ActionSheetModal({
             `${s.city || selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
           lat: typeof s.lat === 'number' ? s.lat : selectedPlace?.lat,
           lng: typeof s.lng === 'number' ? s.lng : selectedPlace?.lng,
+          year: s.year || selectedPlace?.year || '2026',
+          month: s.month || selectedPlace?.month || 'May',
         }
   );
 
@@ -221,7 +225,10 @@ export function ActionSheetModal({
                           style={styles.spotActionCard}
                         >
                           <Text style={styles.spotActionName}>
-                            📍 {c.name}, {selectedPlace.country}
+                            📍 {c.name}, {selectedPlace.country}{' '}
+                            <Text style={{ color: '#38bdf8', fontSize: 12 }}>
+                              • {c.month || selectedPlace.month} {c.year || selectedPlace.year}
+                            </Text>
                           </Text>
                           <View style={[styles.rideRow, { marginBottom: 0 }]}>
                             <TouchableOpacity
@@ -290,7 +297,12 @@ export function ActionSheetModal({
                     </Text>
                     {normalizedSpots.map((spot, idx) => (
                       <View key={`sheet-fd-${idx}`} style={styles.spotActionCard}>
-                        <Text style={styles.spotActionName}>📍🍽️ {spot.name}</Text>
+                        <Text style={styles.spotActionName}>
+                          📍🍽️ {spot.name}{' '}
+                          <Text style={{ color: '#38bdf8', fontSize: 12 }}>
+                            • {spot.month} {spot.year}
+                          </Text>
+                        </Text>
                         {spot.address ? (
                           <Text
                             style={{

@@ -1,19 +1,71 @@
 // Helper utilities for Country Check-ins, Multiple Cities, Local Beers, and Food & Drink spots
 
+const MONTH_ORDER = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+export const getMonthOrder = (monthStr) => {
+  if (!monthStr || typeof monthStr !== 'string') return 13;
+  const key = monthStr.trim().toLowerCase();
+  if (MONTH_ORDER[key]) return MONTH_ORDER[key];
+  const num = parseInt(key, 10);
+  if (!Number.isNaN(num) && num >= 1 && num <= 12) return num;
+  return 13;
+};
+
 export const getPlaceCitiesList = (place) => {
   if (Array.isArray(place?.cities) && place.cities.length > 0) {
     return place.cities.map((c) =>
       typeof c === 'string'
-        ? { name: c, lat: place.lat, lng: place.lng }
+        ? {
+            name: c,
+            lat: place.lat,
+            lng: place.lng,
+            year: place.year || '2026',
+            month: place.month || 'May',
+          }
         : {
             name: c.name,
             lat: typeof c.lat === 'number' ? c.lat : place.lat,
             lng: typeof c.lng === 'number' ? c.lng : place.lng,
+            year: c.year || place.year || '2026',
+            month: c.month || place.month || 'May',
           }
     );
   }
   if (place?.city) {
-    return [{ name: place.city, lat: place.lat, lng: place.lng }];
+    return [
+      {
+        name: place.city,
+        lat: place.lat,
+        lng: place.lng,
+        year: place.year || '2026',
+        month: place.month || 'May',
+      },
+    ];
   }
   return [];
 };
@@ -60,4 +112,3 @@ export const getTotalPinsCount = (visitedPlaces) =>
     const beerCount = Array.isArray(place.beers) ? place.beers.length : 0;
     return sum + Math.max(1, citiesCount + foodCount + beerCount);
   }, 0);
-

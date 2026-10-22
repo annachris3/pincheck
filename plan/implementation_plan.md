@@ -160,9 +160,24 @@ See my map & start your own collection: [Profile_URL]
    * **Bottom (Fixed/Sticky Call to Action):**
      * Floating bottom button: **"📍 Create Your PinCheck Map"**
      * Links directly to app download / registration.
-2. **Mobile-First Web Experience:**
+2. **Mobile-First Web Experience (`https://pincheckin.expo.app`):**
    * Ensure fast loading on mobile browsers (Safari/Chrome).
+   * Opens directly on the interactive **`🗺️ World Map`** as the main page, with the **`📅 Timeline & List`** tab right beside it.
    * Read-only view (no editing capabilities for external viewers).
+   * Tapping **"📍 Create Your PinCheck Map"** initializes a brand-new blank map in isolated guest storage so external visitors never edit the owner's map.
+
+---
+
+# Task: Timeline Refinements, Per-Spot Month/Year & Linktree Support
+
+1. **Month & Year on Cities and Food & Drink Spots + Repeat Country Merging:**
+   * Each City and each Food & Drink spot stores its own `month` and `year`.
+   * If a user repeats a country in a different Month/Year, they do not need to create a duplicate country—new cities, beers, and food & drink spots automatically merge into the existing country check-in and appear in the Timeline under the exact Year and Month of each visit.
+2. **Minimal Timeline Cards Sorted Oldest First:**
+   * Timeline years and months are sorted chronologically from **oldest to newest** (`2019` → `2024` → `2026`, `January` → `December`).
+   * Timeline cards display only the main info (**Country**, **City/Cities**, and **Month/Year**). Tapping a card opens the full `ActionSheetModal` with Beers, Food & Drink spots, Google Maps, **🏨 Find Stays**, and Uber/Bolt.
+3. **Linktree Integration:**
+   * One-tap copy/share of **`https://pincheckin.expo.app`** inside `EditProfileModal.js` to paste into a Linktree account (`linktr.ee`), plus configurable Linktree/Website button (`customLinkLabel` & `customLinkUrl`) on the PinCheck profile header.
 
 ---
 

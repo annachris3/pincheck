@@ -3,16 +3,13 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/styles';
 import {
   getPlaceCitiesList,
-  getUniqueCountriesCount,
-  getUniqueCitiesCount,
+  getMonthOrder,
 } from '../utils/categories';
 
 export function TimelineView({
   visitedPlaces,
   onSelectPlace,
-  onSelectFoodSpot,
   onEditPlace,
-  onFindStays,
   readOnly = false,
 }) {
   // Build unique country stamp badges
@@ -25,29 +22,99 @@ export function TimelineView({
     if (!seenCountries.has(key)) {
       seenCountries.add(key);
       const citiesInPlace = getPlaceCitiesList(place);
+      const uniqueCityNames = new Set(
+        citiesInPlace.map((c) => (c.name || '').trim().toLowerCase()).filter(Boolean)
+      );
       countryStamps.push({
         id: place.id,
         country: cName,
         year: place.year || '2026',
-        cityCount: citiesInPlace.length,
+        cityCount: uniqueCityNames.size,
         placeRef: place,
       });
     }
   });
 
-  const groupedByYear = visitedPlaces.reduce((acc, place) => {
-    const y = place.year || 'Other';
+  // Expand each country's cities and foodDrinks into distinct (Year, Month) timeline visits
+  // so repeat visits to the same country appear in the exact Year and Month you went there!
+  const timelineEntries = [];
+  visitedPlaces.forEach((place) => {
+    const citiesList = getPlaceCitiesList(place);
+    const foodDrinks = Array.isArray(place.foodDrinks) ? place.foodDrinks : [];
+    const visitMap = {};
+
+    const addVisitCity = (vYear, vMonth, cityName) => {
+      const y = (vYear || place.year || '2026').trim();
+      const m = (vMonth || place.month || 'May').trim();
+      const key = `${y}__${m.toLowerCase()}`;
+      if (!visitMap[key]) {
+        visitMap[key] = {
+          id: `${place.id}-${key}`,
+          country: place.country,
+          year: y,
+          month: m,
+          cities: [],
+          placeRef: place,
+        };
+      }
+      if (
+        cityName &&
+        !visitMap[key].cities.some(
+          (existing) => existing.toLowerCase() === cityName.trim().toLowerCase()
+        )
+      ) {
+        visitMap[key].cities.push(cityName.trim());
+      }
+    };
+
+    citiesList.forEach((c) => {
+      addVisitCity(c.year || place.year, c.month || place.month, c.name);
+    });
+
+    foodDrinks.forEach((spot) => {
+      if (typeof spot === 'object' && spot !== null) {
+        const sCity = spot.city || place.city || citiesList[0]?.name || '';
+        addVisitCity(spot.year || place.year, spot.month || place.month, sCity);
+      }
+    });
+
+    const visits = Object.values(visitMap);
+    if (visits.length === 0) {
+      timelineEntries.push({
+        id: place.id,
+        country: place.country,
+        year: place.year || '2026',
+        month: place.month || 'May',
+        cities: place.city ? [place.city] : [],
+        placeRef: place,
+      });
+    } else {
+      visits.forEach((v) => timelineEntries.push(v));
+    }
+  });
+
+  // Group timeline entries by year
+  const groupedByYear = timelineEntries.reduce((acc, entry) => {
+    const y = entry.year || 'Other';
     if (!acc[y]) acc[y] = [];
-    acc[y].push(place);
+    acc[y].push(entry);
     return acc;
   }, {});
+
+  // Sort years OLDEST first (ascending: e.g. 2019 -> 2022 -> 2024 -> 2026)
+  const sortedYears = Object.keys(groupedByYear).sort((a, b) => {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+      return numA - numB;
+    }
+    return String(a).localeCompare(String(b));
+  });
 
   return (
     <ScrollView style={styles.timelineContainer}>
       <Text style={styles.timelineHelp}>
-        {readOnly
-          ? '💡 Tap any country or 🍽️ spot to view details, Google Maps & 🏨 Find Stays'
-          : '💡 Tap a country check-in to add/edit cities, or tap any 🍽️ spot for Maps & Rides'}
+        💡 Sorted oldest to newest • Tap any card to see spots, beers, Maps & Stays
       </Text>
 
       {/* Country Stamp Badges */}
@@ -69,7 +136,7 @@ export function TimelineView({
                 </Text>
                 <Text style={styles.stampMetaText}>
                   ★ {stamp.cityCount}{' '}
-                  {stamp.cityCount === 1 ? 'City' : 'Cities'} · {stamp.year}
+                  {stamp.cityCount === 1 ? 'City' : 'Cities'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -77,190 +144,117 @@ export function TimelineView({
         </View>
       )}
 
-      {Object.keys(groupedByYear)
-        .sort((a, b) => b - a)
-        .map((yearKey) => {
-          const placesThisYear = groupedByYear[yearKey] || [];
-          const yearCountries = getUniqueCountriesCount(placesThisYear);
-          const yearCities = getUniqueCitiesCount(placesThisYear);
+      {sortedYears.map((yearKey) => {
+        // Sort entries within the year by Month OLDEST first (Jan -> Dec)
+        const entriesThisYear = [...(groupedByYear[yearKey] || [])].sort(
+          (a, b) => getMonthOrder(a.month) - getMonthOrder(b.month)
+        );
 
-          return (
-            <View key={yearKey} style={styles.yearSection}>
-              <View style={styles.yearHeaderBadge}>
-                <Text style={styles.yearHeaderText}>
-                  {yearKey}  •  🌍 {yearCountries} {yearCountries === 1 ? 'country' : 'countries'}  •  🏙️ {yearCities} {yearCities === 1 ? 'city' : 'cities'}
-                </Text>
-              </View>
+        const yearCountriesCount = new Set(
+          entriesThisYear
+            .map((e) => (e.country || '').trim().toLowerCase())
+            .filter(Boolean)
+        ).size;
 
-              {placesThisYear.map((item) => {
-                const citiesList = getPlaceCitiesList(item);
-                const cityNames = citiesList.map((c) => c.name);
-                const beers = Array.isArray(item.beers) ? item.beers : [];
-                const foodDrinks = Array.isArray(item.foodDrinks) ? item.foodDrinks : [];
+        const yearCitiesSet = new Set();
+        entriesThisYear.forEach((e) => {
+          (e.cities || []).forEach((cName) => {
+            if (cName) yearCitiesSet.add(cName.toLowerCase());
+          });
+        });
+        const yearCitiesCount = yearCitiesSet.size;
 
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.timelineCard}
-                    activeOpacity={0.8}
-                    onPress={() => onSelectPlace(item)}
-                  >
-                    <View style={styles.timelineLeftDot}>
-                      <Text style={{ fontSize: 16 }}>📍</Text>
-                      <View style={styles.line} />
-                    </View>
-                    <View style={styles.cardContent}>
-                      <View style={styles.cardHeaderRow}>
-                        <Text style={styles.cardTitle}>
-                          🌍 {item.country}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={styles.cardMonth}>{item.month}</Text>
-                          {!readOnly && (
-                            <TouchableOpacity
-                              style={styles.cardEditPill}
-                              onPress={() => onEditPlace(item)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={styles.cardEditPillText}>✏️ Edit</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-
-                      {/* Visited Cities inside this Country (with 🏨 Find Stays & Maps) */}
-                      <View style={styles.subItemGroup}>
-                        <Text style={styles.subItemGroupLabel}>🏙️ Cities Visited:</Text>
-                        <View style={styles.subChipsWrap}>
-                          {cityNames.map((cName, idx) => (
-                            <View
-                              key={`city-${idx}`}
-                              style={[
-                                styles.addedItemChip,
-                                { paddingRight: 6, gap: 6 },
-                              ]}
-                            >
-                              <Text style={styles.subChipText}>📍 {cName}</Text>
-                              <TouchableOpacity
-                                style={styles.inlineStayPill}
-                                onPress={() =>
-                                  onFindStays({
-                                    city: cName,
-                                    country: item.country,
-                                  })
-                                }
-                                activeOpacity={0.7}
-                              >
-                                <Text style={styles.inlineStayPillText}>
-                                  🏨 Find Stays
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-
-                      <View style={styles.subItemsContainer}>
-                        {beers.length > 0 && (
-                          <View style={styles.subItemGroup}>
-                            <Text style={styles.subItemGroupLabel}>
-                              🍺 Local Beers ({item.country}):
-                            </Text>
-                            <View style={styles.subChipsWrap}>
-                              {beers.map((beer, idx) => (
-                                <View key={`beer-${idx}`} style={styles.subChipBeer}>
-                                  <Text style={styles.subChipText}>
-                                    🍺 {beer} tasted in {item.country}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        )}
-
-                        {foodDrinks.length > 0 && (
-                          <View style={styles.subItemGroup}>
-                            <Text style={styles.subItemGroupLabel}>
-                              🍽️ Pinned Food & Drink (Tap for Maps / Ride / Stays):
-                            </Text>
-                            <View style={{ gap: 6 }}>
-                              {foodDrinks.map((spot, idx) => {
-                                const spotName =
-                                  typeof spot === 'string' ? spot : spot.name;
-                                const spotCity =
-                                  typeof spot === 'object' && spot.city
-                                    ? spot.city
-                                    : item.city;
-                                const spotAddress =
-                                  typeof spot === 'object' && spot.address
-                                    ? spot.address
-                                    : null;
-                                return (
-                                  <View
-                                    key={`fd-${idx}`}
-                                    style={[
-                                      styles.subChipFood,
-                                      {
-                                        paddingVertical: 8,
-                                        paddingHorizontal: 10,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                      },
-                                    ]}
-                                  >
-                                    <TouchableOpacity
-                                      style={{ flex: 1, marginRight: 8 }}
-                                      activeOpacity={0.7}
-                                      onPress={() => onSelectFoodSpot(item, spotName)}
-                                    >
-                                      <Text style={styles.subChipText}>
-                                        📍🍽️ {spotName}
-                                      </Text>
-                                      {spotAddress ? (
-                                        <Text
-                                          style={{
-                                            fontSize: 11,
-                                            color: '#94a3b8',
-                                            marginTop: 2,
-                                          }}
-                                        >
-                                          {spotAddress}
-                                        </Text>
-                                      ) : null}
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                      style={styles.inlineStayPill}
-                                      onPress={() =>
-                                        onFindStays(
-                                          {
-                                            city: spotCity,
-                                            country: item.country,
-                                          },
-                                          spotName
-                                        )
-                                      }
-                                      activeOpacity={0.7}
-                                    >
-                                      <Text style={styles.inlineStayPillText}>
-                                        🏨 Find Stays
-                                      </Text>
-                                    </TouchableOpacity>
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+        return (
+          <View key={yearKey} style={styles.yearSection}>
+            <View style={styles.yearHeaderBadge}>
+              <Text style={styles.yearHeaderText}>
+                {yearKey}  •  🌍 {yearCountriesCount}{' '}
+                {yearCountriesCount === 1 ? 'country' : 'countries'}  •  🏙️{' '}
+                {yearCitiesCount} {yearCitiesCount === 1 ? 'city' : 'cities'}
+              </Text>
             </View>
-          );
-        })}
+
+            {entriesThisYear.map((entry) => {
+              const cityDisplay =
+                entry.cities && entry.cities.length > 0
+                  ? entry.cities.join(', ')
+                  : entry.placeRef?.city || '';
+
+              return (
+                <TouchableOpacity
+                  key={entry.id}
+                  style={styles.timelineCard}
+                  activeOpacity={0.8}
+                  onPress={() => onSelectPlace(entry.placeRef)}
+                >
+                  <View style={styles.timelineLeftDot}>
+                    <Text style={{ fontSize: 16 }}>📍</Text>
+                    <View style={styles.line} />
+                  </View>
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={styles.cardTitle}>
+                        🌍 {entry.country}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Text style={styles.cardMonth}>
+                          {entry.month} {entry.year}
+                        </Text>
+                        {!readOnly && (
+                          <TouchableOpacity
+                            style={styles.cardEditPill}
+                            onPress={() => onEditPlace(entry.placeRef)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.cardEditPillText}>✏️ Edit</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Main Info Only: City / Cities + Tap hint */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: '#cbd5e1',
+                          fontWeight: '600',
+                          flex: 1,
+                        }}
+                      >
+                        🏙️ {cityDisplay}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: '#38bdf8',
+                          fontWeight: '700',
+                          marginLeft: 8,
+                        }}
+                      >
+                        Tap for details ›
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        );
+      })}
       <View style={{ height: 110 }} />
     </ScrollView>
   );

@@ -44,7 +44,9 @@ export default function App() {
     tiktokUser,
     setTiktokUser,
     customLinkUrl,
+    setCustomLinkUrl,
     customLinkLabel,
+    setCustomLinkLabel,
     visitedPlaces,
     setVisitedPlaces,
     isReadOnlyViewer,
@@ -193,8 +195,17 @@ export default function App() {
     setIsSearchingLocation(true);
 
     // Ensure every city in finalCities has fresh coordinates for its current name!
-    const existingPlace = editingPinId
-      ? visitedPlaces.find((p) => p.id === editingPinId)
+    const existingCountryMatch = !editingPinId
+      ? visitedPlaces.find(
+          (p) =>
+            (p.country || '').trim().toLowerCase() ===
+            countryName.trim().toLowerCase()
+        )
+      : null;
+
+    const targetPinId = editingPinId || existingCountryMatch?.id || null;
+    const existingPlace = targetPinId
+      ? visitedPlaces.find((p) => p.id === targetPinId)
       : null;
     const existingCities = existingPlace ? getPlaceCitiesList(existingPlace) : [];
 
@@ -204,13 +215,28 @@ export default function App() {
       const cName = (typeof c === 'string' ? c : c.name || '').trim();
       if (!cName) continue;
 
+      const cYear =
+        (typeof c === 'object' && c.year ? c.year : year).trim() || '2026';
+      const cMonth =
+        (typeof c === 'object' && c.month ? c.month : month).trim() || 'May';
+
       // Check if an existing city had the exact same name & valid coordinates
       const prevMatch = existingCities.find(
         (prev) => prev.name.trim().toLowerCase() === cName.toLowerCase()
       );
 
-      let cLat = typeof c === 'object' && typeof c.lat === 'number' ? c.lat : null;
-      let cLng = typeof c === 'object' && typeof c.lng === 'number' ? c.lng : null;
+      let cLat =
+        typeof c === 'object' && typeof c.lat === 'number'
+          ? c.lat
+          : prevMatch && typeof prevMatch.lat === 'number'
+          ? prevMatch.lat
+          : null;
+      let cLng =
+        typeof c === 'object' && typeof c.lng === 'number'
+          ? c.lng
+          : prevMatch && typeof prevMatch.lng === 'number'
+          ? prevMatch.lng
+          : null;
 
       // If the city is new or its name changed, fetch fresh coordinates from OpenStreetMap!
       if (!prevMatch || cLat === null || cLng === null) {
@@ -239,6 +265,8 @@ export default function App() {
         name: cName,
         lat: cLat,
         lng: cLng,
+        year: cYear,
+        month: cMonth,
       });
     }
 
@@ -251,6 +279,24 @@ export default function App() {
       );
       return;
     }
+
+    const normalizedFoodDrinks = (finalFoodDrinks || []).map((spot) =>
+      typeof spot === 'string'
+        ? {
+            name: spot,
+            city: resolvedCities[0].name,
+            address: `${resolvedCities[0].name}, ${countryName.trim()}`,
+            lat: null,
+            lng: null,
+            year: year.trim() || '2026',
+            month: month.trim() || 'May',
+          }
+        : {
+            ...spot,
+            year: (spot.year || year || '2026').trim(),
+            month: (spot.month || month || 'May').trim(),
+          }
+    );
 
     const latestCity = resolvedCities[resolvedCities.length - 1];
     const primaryCity = resolvedCities[0];
@@ -267,9 +313,43 @@ export default function App() {
               year: year.trim() || '2026',
               month: month.trim() || 'May',
               beers: finalBeers,
-              foodDrinks: finalFoodDrinks,
+              foodDrinks: normalizedFoodDrinks,
               lat: primaryCity.lat,
               lng: primaryCity.lng,
+            }
+          : p
+      );
+    } else if (existingCountryMatch) {
+      // Automatically merge repeat visit into the existing Country entry!
+      const mergedCities = [...existingCities];
+      resolvedCities.forEach((rc) => {
+        const alreadySameCityAndDate = mergedCities.some(
+          (ec) =>
+            ec.name.trim().toLowerCase() === rc.name.toLowerCase() &&
+            (ec.year || existingCountryMatch.year) === rc.year &&
+            (ec.month || existingCountryMatch.month).toLowerCase() ===
+              rc.month.toLowerCase()
+        );
+        if (!alreadySameCityAndDate) {
+          mergedCities.push(rc);
+        }
+      });
+
+      const mergedBeers = Array.from(
+        new Set([...(existingCountryMatch.beers || []), ...finalBeers])
+      );
+      const mergedFoodDrinks = [
+        ...(existingCountryMatch.foodDrinks || []),
+        ...normalizedFoodDrinks,
+      ];
+
+      updatedList = visitedPlaces.map((p) =>
+        p.id === existingCountryMatch.id
+          ? {
+              ...p,
+              cities: mergedCities,
+              beers: mergedBeers,
+              foodDrinks: mergedFoodDrinks,
             }
           : p
       );
@@ -282,7 +362,7 @@ export default function App() {
         year: year.trim() || '2026',
         month: month.trim() || 'May',
         beers: finalBeers,
-        foodDrinks: finalFoodDrinks,
+        foodDrinks: normalizedFoodDrinks,
         lat: primaryCity.lat,
         lng: primaryCity.lng,
       };
@@ -453,6 +533,10 @@ export default function App() {
         setInstagramUser={setInstagramUser}
         tiktokUser={tiktokUser}
         setTiktokUser={setTiktokUser}
+        customLinkUrl={customLinkUrl}
+        setCustomLinkUrl={setCustomLinkUrl}
+        customLinkLabel={customLinkLabel}
+        setCustomLinkLabel={setCustomLinkLabel}
         visitedPlaces={visitedPlaces}
         onImportPlaces={(imported) => {
           const normalized = normalizeStoredPlaces(imported);
