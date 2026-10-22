@@ -40,6 +40,7 @@ export function ActionSheetModal({
           lng: selectedPlace?.lng,
           year: selectedPlace?.year || '2026',
           month: selectedPlace?.month || 'May',
+          localBeerName: '',
         }
       : {
           name: s.name,
@@ -51,6 +52,7 @@ export function ActionSheetModal({
           lng: typeof s.lng === 'number' ? s.lng : selectedPlace?.lng,
           year: s.year || selectedPlace?.year || '2026',
           month: s.month || selectedPlace?.month || 'May',
+          localBeerName: s.localBeerName || '',
         }
   );
 
@@ -61,6 +63,7 @@ export function ActionSheetModal({
         address: `${selectedPlace?.city || ''}, ${selectedPlace?.country || ''}`,
         lat: selectedPlace?.lat,
         lng: selectedPlace?.lng,
+        localBeerName: '',
       }
     : null;
 
@@ -77,6 +80,18 @@ export function ActionSheetModal({
                   <Text style={styles.sheetSubtitle}>
                     📍 {focusedSpot.address}
                   </Text>
+                  {focusedSpot.localBeerName ? (
+                    <View
+                      style={[
+                        styles.subChipBeer,
+                        { alignSelf: 'flex-start', marginTop: 8 },
+                      ]}
+                    >
+                      <Text style={styles.subChipText}>
+                        🍺 Local Brew: {focusedSpot.localBeerName}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <TouchableOpacity
                   style={styles.closeSheetBtn}
@@ -316,11 +331,23 @@ export function ActionSheetModal({
                             style={{
                               fontSize: 12,
                               color: '#94a3b8',
-                              marginBottom: 10,
+                              marginBottom: spot.localBeerName ? 6 : 10,
                             }}
                           >
                             📍 {spot.address}
                           </Text>
+                        ) : null}
+                        {spot.localBeerName ? (
+                          <View
+                            style={[
+                              styles.subChipBeer,
+                              { alignSelf: 'flex-start', marginBottom: 10 },
+                            ]}
+                          >
+                            <Text style={styles.subChipText}>
+                              🍺 Local Brew: {spot.localBeerName}
+                            </Text>
+                          </View>
                         ) : null}
 
                         <View style={styles.rideRow}>

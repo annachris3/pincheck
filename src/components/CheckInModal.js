@@ -46,6 +46,7 @@ export function CheckInModal({
 
   const [beerInput, setBeerInput] = useState('');
   const [foodDrinkInput, setFoodDrinkInput] = useState('');
+  const [localBeerInput, setLocalBeerInput] = useState('');
   const [foodMonthInput, setFoodMonthInput] = useState('');
   const [foodYearInput, setFoodYearInput] = useState('');
   const [selectedFoodCity, setSelectedFoodCity] = useState('');
@@ -181,6 +182,7 @@ export function CheckInModal({
 
     const spotYear = foodYearInput.trim() || year.trim() || '2026';
     const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
+    const spotLocalBeer = localBeerInput.trim();
 
     setIsLookingUpSpot(true);
     const resolved = await searchVenueInCity(
@@ -198,6 +200,7 @@ export function CheckInModal({
           city: activeCityName,
           year: spotYear,
           month: spotMonth,
+          localBeerName: spotLocalBeer || '',
         },
       ]);
     } else {
@@ -213,10 +216,18 @@ export function CheckInModal({
           lng: null,
           year: spotYear,
           month: spotMonth,
+          localBeerName: spotLocalBeer || '',
         },
       ]);
     }
+    if (
+      spotLocalBeer &&
+      !beers.some((b) => b.trim().toLowerCase() === spotLocalBeer.toLowerCase())
+    ) {
+      setBeers([...beers, spotLocalBeer]);
+    }
     setFoodDrinkInput('');
+    setLocalBeerInput('');
     setFoodMonthInput('');
     setFoodYearInput('');
   };
@@ -300,6 +311,7 @@ export function CheckInModal({
 
       const spotYear = foodYearInput.trim() || year.trim() || '2026';
       const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
+      const spotLocalBeer = localBeerInput.trim();
 
       setIsLookingUpSpot(true);
       const resolved = await searchVenueInCity(
@@ -315,6 +327,7 @@ export function CheckInModal({
             city: activeCityName,
             year: spotYear,
             month: spotMonth,
+            localBeerName: spotLocalBeer || '',
           }
         : {
             name: pendingName,
@@ -326,10 +339,21 @@ export function CheckInModal({
             lng: null,
             year: spotYear,
             month: spotMonth,
+            localBeerName: spotLocalBeer || '',
           };
       finalFoodDrinks = [...finalFoodDrinks, newSpot];
       setFoodDrinks(finalFoodDrinks);
+      if (
+        spotLocalBeer &&
+        !finalBeers.some(
+          (b) => b.trim().toLowerCase() === spotLocalBeer.toLowerCase()
+        )
+      ) {
+        finalBeers = [...finalBeers, spotLocalBeer];
+        setBeers(finalBeers);
+      }
       setFoodDrinkInput('');
+      setLocalBeerInput('');
       setFoodMonthInput('');
       setFoodYearInput('');
     }
@@ -739,6 +763,24 @@ export function CheckInModal({
                   </TouchableOpacity>
                 </View>
 
+                {/* Optional Local Beer Prompt for Food & Drinks Pins */}
+                <Text
+                  style={[
+                    styles.fieldLabel,
+                    { marginTop: 10, marginBottom: 4, color: '#fbbf24' },
+                  ]}
+                >
+                  🍺 Tried a local beer here? (Optional)
+                </Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 4 }]}
+                  placeholder="Beer name (e.g. Peroni, Mythos, Stiegl)"
+                  placeholderTextColor="#64748b"
+                  value={localBeerInput}
+                  onChangeText={setLocalBeerInput}
+                  onSubmitEditing={handleAddFoodDrink}
+                />
+
                 {foodDrinks.length > 0 && (
                   <View style={{ marginTop: 10, gap: 8 }}>
                     {foodDrinks.map((item, index) => {
@@ -748,6 +790,10 @@ export function CheckInModal({
                         typeof item === 'object' && item.address
                           ? item.address
                           : null;
+                      const spotLocalBeer =
+                        typeof item === 'object' && item.localBeerName
+                          ? item.localBeerName
+                          : '';
                       const spotDate =
                         typeof item === 'object' && (item.month || item.year)
                           ? [item.month, item.year].filter(Boolean).join(' ')
@@ -784,6 +830,18 @@ export function CheckInModal({
                               >
                                 📍 {spotAddress}
                               </Text>
+                            ) : null}
+                            {spotLocalBeer ? (
+                              <View
+                                style={[
+                                  styles.subChipBeer,
+                                  { alignSelf: 'flex-start', marginTop: 5 },
+                                ]}
+                              >
+                                <Text style={styles.subChipText}>
+                                  🍺 Local Brew: {spotLocalBeer}
+                                </Text>
+                              </View>
                             ) : null}
                           </View>
                           <TouchableOpacity

@@ -279,6 +279,25 @@ Evaluate the user's rank based on total confirmed destinations:
 
 ---
 
+# Task: Add "Local Beer" Prompt to Food & Drinks Pins
+
+## 1. Pin Creation Form (Food & Drinks Categories Only — `CheckInModal.js`)
+* When a user selects **"Food & Drink"** as the pin category (`activeSubTab === 'food'`), display an optional field:
+  * **Label:** `"🍺 Tried a local beer here? (Optional)"`
+  * **Placeholder:** `"Beer name (e.g. Peroni, Mythos, Stiegl)"`
+* Store this value as `localBeerName` on the pin record.
+
+## 2. Pin Detail Display (`ActionSheetModal.js` & `PublicProfileView.js`)
+* When viewing a saved pin that has a beer logged (`localBeerName`), display a distinct pill tag:
+  * **`"🍺 Local Brew: [Beer Name]"`**
+
+## 3. Passport Stats Counter (`categories.js` & `ProfileHeader.js`)
+* Calculate total unique local beers logged across all pins (`getTotalBeersCount` deduplicating `beers[]` and `localBeerName`).
+* Display this achievement badge on the user's passport summary:
+  * **`"🍺 [X] Local Beers Tried"`**
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure

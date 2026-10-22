@@ -136,11 +136,35 @@ export const getUniqueIslandsCount = (visitedPlaces) => {
   return islandSet.size;
 };
 
-export const getTotalBeersCount = (visitedPlaces) =>
-  visitedPlaces.reduce(
-    (sum, place) => sum + (Array.isArray(place.beers) ? place.beers.length : 0),
-    0
-  );
+// Total Unique Local Beers Counter across all pins (beers[] + localBeerName on Food & Drink pins)
+export const getTotalBeersCount = (visitedPlaces = []) => {
+  const uniqueBeers = new Set();
+  visitedPlaces.forEach((place) => {
+    if (Array.isArray(place?.beers)) {
+      place.beers.forEach((b) => {
+        if (typeof b === 'string' && b.trim()) {
+          uniqueBeers.add(b.trim().toLowerCase());
+        }
+      });
+    }
+    if (typeof place?.localBeerName === 'string' && place.localBeerName.trim()) {
+      uniqueBeers.add(place.localBeerName.trim().toLowerCase());
+    }
+    if (Array.isArray(place?.foodDrinks)) {
+      place.foodDrinks.forEach((spot) => {
+        if (
+          spot &&
+          typeof spot === 'object' &&
+          typeof spot.localBeerName === 'string' &&
+          spot.localBeerName.trim()
+        ) {
+          uniqueBeers.add(spot.localBeerName.trim().toLowerCase());
+        }
+      });
+    }
+  });
+  return uniqueBeers.size;
+};
 
 export const getTotalFoodDrinksCount = (visitedPlaces) =>
   visitedPlaces.reduce(

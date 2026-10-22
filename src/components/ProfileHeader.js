@@ -221,7 +221,9 @@ export function ProfileHeader({
       {/* Subcategory Stats Badges */}
       <View style={styles.tasteChipsRow}>
         <View style={styles.tasteChip}>
-          <Text style={styles.tasteChipText}>🍺 {beerCount} Local Beers</Text>
+          <Text style={styles.tasteChipText}>
+            🍺 {beerCount} Local Beers Tried
+          </Text>
         </View>
         <View style={styles.tasteChip}>
           <Text style={styles.tasteChipText}>🍽️ {foodDrinkCount} Food & Drink</Text>

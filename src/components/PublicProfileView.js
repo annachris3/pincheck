@@ -97,6 +97,8 @@ export function PublicProfileView({
           (typeof spot === 'object' && spot.city) || place.city || '';
         const spotAddress =
           (typeof spot === 'object' && spot.address) || '';
+        const spotLocalBeer =
+          (typeof spot === 'object' && spot.localBeerName) || '';
         if (!spotName) return;
 
         spotCards.push({
@@ -106,6 +108,7 @@ export function PublicProfileView({
           title: spotName,
           subtitle: [spotCity, place.country].filter(Boolean).join(', '),
           address: spotAddress,
+          localBeerName: spotLocalBeer,
           placeRef: {
             ...place,
             city: spotCity || place.city,
@@ -314,6 +317,18 @@ export function PublicProfileView({
                       >
                         📮 {spot.address}
                       </Text>
+                    ) : null}
+                    {spot.localBeerName ? (
+                      <View
+                        style={[
+                          styles.subChipBeer,
+                          { alignSelf: 'flex-start', marginTop: 6 },
+                        ]}
+                      >
+                        <Text style={styles.subChipText}>
+                          🍺 Local Brew: {spot.localBeerName}
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
                 </View>
