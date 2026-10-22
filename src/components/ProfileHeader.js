@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles/styles';
 import { openSocial, DEFAULT_TRAVELER_AVATAR } from '../utils/externalLinks';
+import pincheckLogo from '../../assets/pincheck-logo.png';
 import {
   getUniqueCountriesCount,
   getUniqueCitiesCount,
@@ -79,7 +80,23 @@ export function ProfileHeader({
             <Text style={styles.displayName}>{displayName}</Text>
             {!readOnly && <Text style={styles.editIconHint}>✏️</Text>}
           </View>
-          <Text style={styles.appBrandLowercase}>pincheck</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              marginTop: 1,
+              marginBottom: 1,
+            }}
+          >
+            <Image
+              source={pincheckLogo}
+              style={{ width: 16, height: 16, borderRadius: 4 }}
+            />
+            <Text style={[styles.appBrandLowercase, { marginTop: 0 }]}>
+              pincheck
+            </Text>
+          </View>
           <Text
             style={{
               fontSize: 13,

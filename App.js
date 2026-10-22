@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import pincheckLogo from './assets/pincheck-logo.png';
 
 import {
   usePinCheckData,
@@ -52,6 +54,7 @@ export default function App() {
     setCustomLinkLabel,
     visitedPlaces,
     setVisitedPlaces,
+    isStorageLoaded,
     isReadOnlyViewer,
     startNewUserMap,
   } = usePinCheckData();
@@ -453,6 +456,47 @@ export default function App() {
       }
     } catch {}
   };
+
+  if (!isStorageLoaded) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          {
+            backgroundColor: '#030b1c',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        ]}
+      >
+        <Image
+          source={pincheckLogo}
+          style={{ width: 130, height: 130, borderRadius: 28, marginBottom: 16 }}
+        />
+        <Text
+          style={{
+            color: '#f8fafc',
+            fontSize: 24,
+            fontWeight: '900',
+            letterSpacing: 0.5,
+          }}
+        >
+          PinCheck
+        </Text>
+        <Text
+          style={{
+            color: '#38bdf8',
+            fontSize: 13,
+            fontWeight: '600',
+            marginTop: 4,
+          }}
+        >
+          No Plan, Just PinCheck
+        </Text>
+        <StatusBar style="light" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

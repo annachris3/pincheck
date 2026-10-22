@@ -269,6 +269,14 @@ Evaluate the user's rank based on total confirmed destinations:
 ## 5. Section Rename (`TimelineView.js` & `PublicProfileView.js`)
 * Rename `"Country Stamp Badges (X)"` to **`"Passport Stamps (X)"`**.
 
+## 6. Official PinCheck Logo & App Branding (`assets/` & `app.json`)
+* Generated official PinCheck branding assets from `LOGO.png`:
+  * `assets/icon.png` (`1024x1024`) — Main App Icon.
+  * `assets/android-icon-foreground.png`, `assets/android-icon-background.png` (`#030b1c`), and `assets/android-icon-monochrome.png` (`1024x1024`) — Android Adaptive Icons.
+  * `assets/splash-icon.png` (`1024x1024`) — Native Splash Screen (`app.json`) + In-App Loading Screen (`App.js`).
+  * `assets/favicon.png` (`192x192`) — Web Favicon (`https://pincheckin.expo.app`).
+  * `assets/pincheck-logo.png` (`256x256`) — Header brand logo displayed beside `pincheck` on mobile (`ProfileHeader.js`) and web (`PublicProfileView.js`).
+
 ---
 
 # Implementation Plan: Modular Architecture (`src/`)

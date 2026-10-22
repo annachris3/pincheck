@@ -19,6 +19,7 @@ import {
   openInGoogleMaps,
   DEFAULT_TRAVELER_AVATAR,
 } from '../utils/externalLinks';
+import pincheckLogo from '../../assets/pincheck-logo.png';
 
 export function PublicProfileView({
   profilePhoto,
@@ -143,9 +144,23 @@ export function PublicProfileView({
                 marginBottom: 14,
               }}
             >
-              <View style={[styles.publicBadgeHeader, { marginBottom: 0 }]}>
+              <View
+                style={[
+                  styles.publicBadgeHeader,
+                  {
+                    marginBottom: 0,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  },
+                ]}
+              >
+                <Image
+                  source={pincheckLogo}
+                  style={{ width: 18, height: 18, borderRadius: 4 }}
+                />
                 <Text style={styles.publicBadgeHeaderText}>
-                  ✈️ PINCHECK PUBLIC TRAVEL CARD
+                  PINCHECK PUBLIC TRAVEL CARD
                 </Text>
               </View>
 
