@@ -123,7 +123,7 @@ export function PublicProfileView({
         if (!beer) return;
         beerStamps.push({
           key: `${place.id}-beer-${idx}`,
-          label: `🍺 ${beer}`,
+          label: `🍺 Local Brew: ${beer}`,
         });
       });
     }

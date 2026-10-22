@@ -50,6 +50,7 @@ export function CheckInModal({
   const [foodMonthInput, setFoodMonthInput] = useState('');
   const [foodYearInput, setFoodYearInput] = useState('');
   const [selectedFoodCity, setSelectedFoodCity] = useState('');
+  const [editingFoodIndex, setEditingFoodIndex] = useState(null);
   const [isLookingUpSpot, setIsLookingUpSpot] = useState(false);
 
   // Smart Auto-Detection as user types a destination name (unless manually overridden)
@@ -167,10 +168,25 @@ export function CheckInModal({
     setBeers(beers.filter((_, i) => i !== index));
   };
 
-  // Automatically looks up the address + exact coordinates + saves Month & Year for the Food & Drink spot!
+  // Automatically looks up the address + exact coordinates + saves Month, Year & localBeerName for the Food & Drink spot!
   const handleAddFoodDrink = async () => {
     const trimmed = foodDrinkInput.trim();
-    if (!trimmed) return;
+    const spotLocalBeer = localBeerInput.trim();
+
+    if (!trimmed && !spotLocalBeer) return;
+
+    // If user only typed a local beer without a specific venue name, still record it!
+    if (!trimmed && spotLocalBeer) {
+      if (
+        !beers.some(
+          (b) => b.trim().toLowerCase() === spotLocalBeer.toLowerCase()
+        )
+      ) {
+        setBeers([...beers, spotLocalBeer]);
+      }
+      setLocalBeerInput('');
+      return;
+    }
 
     const activeCityName =
       selectedFoodCity ||
@@ -182,7 +198,6 @@ export function CheckInModal({
 
     const spotYear = foodYearInput.trim() || year.trim() || '2026';
     const spotMonth = foodMonthInput.trim() || month.trim() || 'May';
-    const spotLocalBeer = localBeerInput.trim();
 
     setIsLookingUpSpot(true);
     const resolved = await searchVenueInCity(
@@ -192,21 +207,15 @@ export function CheckInModal({
     );
     setIsLookingUpSpot(false);
 
-    if (resolved) {
-      setFoodDrinks([
-        ...foodDrinks,
-        {
+    const spotObj = resolved
+      ? {
           ...resolved,
           city: activeCityName,
           year: spotYear,
           month: spotMonth,
           localBeerName: spotLocalBeer || '',
-        },
-      ]);
-    } else {
-      setFoodDrinks([
-        ...foodDrinks,
-        {
+        }
+      : {
           name: trimmed,
           city: activeCityName,
           address: [activeCityName, countryName.trim()]
@@ -217,9 +226,19 @@ export function CheckInModal({
           year: spotYear,
           month: spotMonth,
           localBeerName: spotLocalBeer || '',
-        },
-      ]);
+        };
+
+    if (editingFoodIndex !== null) {
+      setFoodDrinks(
+        foodDrinks.map((item, idx) =>
+          idx === editingFoodIndex ? spotObj : item
+        )
+      );
+      setEditingFoodIndex(null);
+    } else {
+      setFoodDrinks([...foodDrinks, spotObj]);
     }
+
     if (
       spotLocalBeer &&
       !beers.some((b) => b.trim().toLowerCase() === spotLocalBeer.toLowerCase())
@@ -232,8 +251,30 @@ export function CheckInModal({
     setFoodYearInput('');
   };
 
+  const handleStartEditFoodDrink = (index) => {
+    const item = foodDrinks[index];
+    if (typeof item === 'string') {
+      setFoodDrinkInput(item);
+      setLocalBeerInput('');
+    } else if (item && typeof item === 'object') {
+      setFoodDrinkInput(item.name || '');
+      setLocalBeerInput(item.localBeerName || '');
+      setFoodMonthInput(item.month || '');
+      setFoodYearInput(item.year || '');
+      if (item.city) setSelectedFoodCity(item.city);
+    }
+    setEditingFoodIndex(index);
+  };
+
   const handleRemoveFoodDrink = (index) => {
     setFoodDrinks(foodDrinks.filter((_, i) => i !== index));
+    if (editingFoodIndex === index) {
+      setEditingFoodIndex(null);
+      setFoodDrinkInput('');
+      setLocalBeerInput('');
+      setFoodMonthInput('');
+      setFoodYearInput('');
+    }
   };
 
   // When tapping Pin Spot / Update Spot, also resolve any text still typed inside the inputs
@@ -341,7 +382,14 @@ export function CheckInModal({
             month: spotMonth,
             localBeerName: spotLocalBeer || '',
           };
-      finalFoodDrinks = [...finalFoodDrinks, newSpot];
+      if (editingFoodIndex !== null) {
+        finalFoodDrinks = finalFoodDrinks.map((item, idx) =>
+          idx === editingFoodIndex ? newSpot : item
+        );
+        setEditingFoodIndex(null);
+      } else {
+        finalFoodDrinks = [...finalFoodDrinks, newSpot];
+      }
       setFoodDrinks(finalFoodDrinks);
       if (
         spotLocalBeer &&
@@ -356,6 +404,27 @@ export function CheckInModal({
       setLocalBeerInput('');
       setFoodMonthInput('');
       setFoodYearInput('');
+    } else if (localBeerInput.trim()) {
+      const onlyBeer = localBeerInput.trim();
+      if (
+        !finalBeers.some((b) => b.trim().toLowerCase() === onlyBeer.toLowerCase())
+      ) {
+        finalBeers = [...finalBeers, onlyBeer];
+        setBeers(finalBeers);
+      }
+      // If editing a specific food spot, attach the localBeerName to it
+      if (editingFoodIndex !== null && finalFoodDrinks[editingFoodIndex]) {
+        finalFoodDrinks = finalFoodDrinks.map((item, idx) =>
+          idx === editingFoodIndex
+            ? typeof item === 'string'
+              ? { name: item, localBeerName: onlyBeer }
+              : { ...item, localBeerName: onlyBeer }
+            : item
+        );
+        setFoodDrinks(finalFoodDrinks);
+        setEditingFoodIndex(null);
+      }
+      setLocalBeerInput('');
     }
 
     onSave(finalCities, finalBeers, finalFoodDrinks, resolvedCountryName);
@@ -738,48 +807,48 @@ export function CheckInModal({
                   />
                 </View>
 
-                <View style={styles.inlineAddRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { flex: 1, marginBottom: 0, marginRight: 8 },
-                    ]}
-                    placeholder="Place Name (e.g. Figlmüller, Café Central)"
-                    placeholderTextColor="#64748b"
-                    value={foodDrinkInput}
-                    onChangeText={setFoodDrinkInput}
-                    onSubmitEditing={handleAddFoodDrink}
-                  />
-                  <TouchableOpacity
-                    style={styles.inlineAddBtn}
-                    onPress={handleAddFoodDrink}
-                    disabled={isLookingUpSpot}
-                  >
-                    {isLookingUpSpot ? (
-                      <ActivityIndicator color="#0f172a" size="small" />
-                    ) : (
-                      <Text style={styles.inlineAddBtnText}>+ Pin</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                {/* Place / Venue Name Input */}
+                <TextInput
+                  style={[styles.input, { marginBottom: 8 }]}
+                  placeholder="Place Name (e.g. Figlmüller, Café Central)"
+                  placeholderTextColor="#64748b"
+                  value={foodDrinkInput}
+                  onChangeText={setFoodDrinkInput}
+                />
 
                 {/* Optional Local Beer Prompt for Food & Drinks Pins */}
                 <Text
                   style={[
                     styles.fieldLabel,
-                    { marginTop: 10, marginBottom: 4, color: '#fbbf24' },
+                    { marginTop: 2, marginBottom: 4, color: '#fbbf24' },
                   ]}
                 >
                   🍺 Tried a local beer here? (Optional)
                 </Text>
                 <TextInput
-                  style={[styles.input, { marginBottom: 4 }]}
+                  style={[styles.input, { marginBottom: 10 }]}
                   placeholder="Beer name (e.g. Peroni, Mythos, Stiegl)"
                   placeholderTextColor="#64748b"
                   value={localBeerInput}
                   onChangeText={setLocalBeerInput}
                   onSubmitEditing={handleAddFoodDrink}
                 />
+
+                <TouchableOpacity
+                  style={[styles.inlineAddBtn, { width: '100%' }]}
+                  onPress={handleAddFoodDrink}
+                  disabled={isLookingUpSpot}
+                >
+                  {isLookingUpSpot ? (
+                    <ActivityIndicator color="#0f172a" size="small" />
+                  ) : (
+                    <Text style={styles.inlineAddBtnText}>
+                      {editingFoodIndex !== null
+                        ? '✓ Update Food / Drink Spot'
+                        : '+ Pin Food / Drink Spot'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
 
                 {foodDrinks.length > 0 && (
                   <View style={{ marginTop: 10, gap: 8 }}>
@@ -798,6 +867,7 @@ export function CheckInModal({
                         typeof item === 'object' && (item.month || item.year)
                           ? [item.month, item.year].filter(Boolean).join(' ')
                           : [month, year].filter(Boolean).join(' ');
+                      const isEditingSpot = editingFoodIndex === index;
 
                       return (
                         <View
@@ -809,15 +879,22 @@ export function CheckInModal({
                               borderRadius: 10,
                               paddingVertical: 8,
                             },
+                            isEditingSpot && {
+                              borderColor: '#f59e0b',
+                              backgroundColor: '#0f172a',
+                            },
                           ]}
                         >
-                          <View style={{ flex: 1, marginRight: 8 }}>
+                          <TouchableOpacity
+                            style={{ flex: 1, marginRight: 8 }}
+                            onPress={() => handleStartEditFoodDrink(index)}
+                          >
                             <Text style={styles.addedItemChipText}>
                               🍽️ {spotName}{' '}
                               <Text
                                 style={{ color: '#38bdf8', fontWeight: '700' }}
                               >
-                                • {spotDate}
+                                • {spotDate} ✏️
                               </Text>
                             </Text>
                             {spotAddress ? (
@@ -843,7 +920,7 @@ export function CheckInModal({
                                 </Text>
                               </View>
                             ) : null}
-                          </View>
+                          </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleRemoveFoodDrink(index)}
                           >

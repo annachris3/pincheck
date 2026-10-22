@@ -305,7 +305,9 @@ export function ActionSheetModal({
                     <View style={styles.subChipsWrap}>
                       {beers.map((beer, idx) => (
                         <View key={`sheet-beer-${idx}`} style={styles.subChipBeer}>
-                          <Text style={styles.subChipText}>🍺 {beer}</Text>
+                          <Text style={styles.subChipText}>
+                            🍺 Local Brew: {beer}
+                          </Text>
                         </View>
                       ))}
                     </View>
