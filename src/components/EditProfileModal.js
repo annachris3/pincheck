@@ -10,7 +10,6 @@ import {
   Alert,
 } from 'react-native';
 import { styles } from '../styles/styles';
-import { PINCHECK_WEB_BASE_URL } from '../utils/externalLinks';
 
 export function EditProfileModal({
   visible,
@@ -34,19 +33,6 @@ export function EditProfileModal({
 }) {
   const [showRestoreBox, setShowRestoreBox] = useState(false);
   const [restoreJsonText, setRestoreJsonText] = useState('');
-
-  // Share / copy the direct PinCheck URL to paste into Linktree
-  const handleCopyForLinktree = async () => {
-    try {
-      await Share.share({
-        title: 'PinCheck Link for Linktree',
-        message: PINCHECK_WEB_BASE_URL,
-        url: PINCHECK_WEB_BASE_URL,
-      });
-    } catch {
-      Alert.alert('PinCheck Link', PINCHECK_WEB_BASE_URL);
-    }
-  };
 
   // Export all pins + profile as JSON backup (can be saved to Notes, Google Drive, WhatsApp, or Email)
   const handleExportBackup = async () => {
@@ -151,55 +137,8 @@ export function EditProfileModal({
               onChangeText={setHomeLocation}
             />
 
-            {/* Linktree & Custom Link Section */}
             <Text style={styles.inputLabel}>
-              🌲 Linktree & Public Map Link
-            </Text>
-            <View style={styles.subCategoryBox}>
-              <Text style={styles.subCategoryHint}>
-                Want to put your PinCheck map inside your{' '}
-                <Text style={{ color: '#38bdf8', fontWeight: '700' }}>Linktree</Text>{' '}
-                account? Add a new link in Linktree and paste this URL:
-              </Text>
-              <View
-                style={[
-                  styles.inlineAddRow,
-                  { marginTop: 8, marginBottom: 4 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.input,
-                    {
-                      flex: 1,
-                      marginBottom: 0,
-                      marginRight: 8,
-                      justifyContent: 'center',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: '#38bdf8',
-                      fontWeight: '700',
-                      fontSize: 13,
-                    }}
-                    selectable={true}
-                  >
-                    {PINCHECK_WEB_BASE_URL}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.inlineAddBtn}
-                  onPress={handleCopyForLinktree}
-                >
-                  <Text style={styles.inlineAddBtnText}>📋 Copy</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Text style={styles.inputLabel}>
-              Your Linktree / Website Button (shown on your profile):
+              Website / Custom Link (Optional):
             </Text>
             <View style={styles.formRow}>
               <TextInput

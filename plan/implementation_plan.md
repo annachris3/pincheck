@@ -176,8 +176,8 @@ See my map & start your own collection: [Profile_URL]
 2. **Minimal Timeline Cards Sorted Oldest First:**
    * Timeline years and months are sorted chronologically from **oldest to newest** (`2019` → `2024` → `2026`, `January` → `December`).
    * Timeline cards display only the main info (**Country**, **City/Cities**, and **Month/Year**). Tapping a card opens the full `ActionSheetModal` with Beers, Food & Drink spots, Google Maps, **🏨 Find Stays**, and Uber/Bolt.
-3. **Linktree Integration:**
-   * One-tap copy/share of **`https://pincheckin.expo.app`** inside `EditProfileModal.js` to paste into a Linktree account (`linktr.ee`), plus configurable Linktree/Website button (`customLinkLabel` & `customLinkUrl`) on the PinCheck profile header.
+3. **Custom Website / Link Button:**
+   * Configurable Website/Custom Link button (`customLinkLabel` & `customLinkUrl`) in `EditProfileModal.js` displayed on the PinCheck profile header.
 
 ---
 
