@@ -91,7 +91,7 @@ export default function App() {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      if (asset.base64) {
+      if (asset.base64 && asset.base64.length < 300000) {
         setProfilePhoto(`data:image/jpeg;base64,${asset.base64}`);
       } else if (asset.uri) {
         setProfilePhoto(asset.uri);

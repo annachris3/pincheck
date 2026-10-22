@@ -129,8 +129,8 @@ export const shareProfile = async ({
   visitedPlaces,
 }) => {
   try {
-    // Sync latest profile + photo + pins to cloud before sharing so https://pincheckin.expo.app is up to date
-    await syncPublicProfileToCloud({
+    // Sync latest profile + photo + pins to cloud in background so Share sheet opens immediately
+    syncPublicProfileToCloud({
       profilePhoto,
       displayName,
       homeLocation,

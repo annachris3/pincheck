@@ -14,7 +14,7 @@ export const CLOUD_SYNC_TOPIC_URL = 'https://ntfy.sh/pincheckin_anna_sync_v2';
 const GUEST_PLACES_KEY = '@pincheck_guest_places_v1';
 const GUEST_PROFILE_KEY = '@pincheck_guest_profile_v1';
 
-// Helper to convert local file:// URI on phone to base64 data URI so it syncs to web invite card
+// Helper to convert local file:// URI on phone to base64 data URI only if compact (< 300KB)
 const convertFileUriToDataUrl = async (uri) => {
   if (!uri || typeof uri !== 'string' || uri.startsWith('data:') || uri.startsWith('http')) {
     return uri;
@@ -22,6 +22,9 @@ const convertFileUriToDataUrl = async (uri) => {
   try {
     const response = await fetch(uri);
     const blob = await response.blob();
+    if (blob.size > 220000) {
+      return uri;
+    }
     return await new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -35,10 +38,17 @@ const convertFileUriToDataUrl = async (uri) => {
   }
 };
 
-// Sync owner's profile + photo + pins to cloud so https://pincheckin.expo.app stays short & up to date
+// Sync owner's profile + photo + pins to cloud (non-blocking) so https://pincheckin.expo.app stays up to date
 export const syncPublicProfileToCloud = async (profilePayload) => {
   if (Platform.OS === 'web') return;
   try {
+    const safePhoto =
+      typeof profilePayload.profilePhoto === 'string' &&
+      profilePayload.profilePhoto.length < 400000 &&
+      !profilePayload.profilePhoto.startsWith('file:')
+        ? profilePayload.profilePhoto
+        : null;
+
     await fetch(CLOUD_SYNC_TOPIC_URL, {
       method: 'POST',
       headers: {
@@ -46,6 +56,7 @@ export const syncPublicProfileToCloud = async (profilePayload) => {
       },
       body: JSON.stringify({
         ...profilePayload,
+        profilePhoto: safePhoto,
         updatedAt: new Date().toISOString(),
       }),
     });
