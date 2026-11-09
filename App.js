@@ -29,6 +29,7 @@ import { TimelineView } from './src/components/TimelineView';
 import { ActionSheetModal } from './src/components/ActionSheetModal';
 import { CheckInModal } from './src/components/CheckInModal';
 import { EditProfileModal } from './src/components/EditProfileModal';
+import { AuthModal } from './src/components/AuthModal';
 
 export default function App() {
   const webViewRef = useRef(null);
@@ -57,11 +58,14 @@ export default function App() {
     isStorageLoaded,
     isReadOnlyViewer,
     startNewUserMap,
+    authUser,
+    syncCurrentPassportToSupabase,
   } = usePinCheckData();
 
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [selectedSpotName, setSelectedSpotName] = useState(null);
@@ -517,6 +521,8 @@ export default function App() {
         onOpenProfileModal={() => {
           if (!isReadOnlyViewer) setProfileModalVisible(true);
         }}
+        onOpenAuthModal={() => setAuthModalVisible(true)}
+        authUser={authUser}
         onShareProfile={handleShareProfile}
         readOnly={isReadOnlyViewer}
       />
@@ -638,6 +644,17 @@ export default function App() {
           setVisitedPlaces(normalized);
         }}
         onClose={() => setProfileModalVisible(false)}
+      />
+
+      {/* MODAL: Supabase Google & Email Sign-In + Admin Passports View */}
+      <AuthModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        authUser={authUser}
+        onAuthSuccess={() => {
+          syncCurrentPassportToSupabase();
+        }}
+        onManualSync={syncCurrentPassportToSupabase}
       />
 
       <StatusBar style="light" />

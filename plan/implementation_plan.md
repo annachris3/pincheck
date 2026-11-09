@@ -323,6 +323,19 @@ Evaluate the user's rank based on total confirmed destinations (starting with `�
 
 ---
 
+# Task: Supabase Free-Tier Database, Google/Email Auth & Admin Passports View
+
+## 1. Supabase Database Schema (`supabase/schema.sql`)
+* **`public.profiles` Table:** Stores every registered user (`id`, `email`, `display_name`, `home_location`, `profile_photo`, social links, `star_level`, `star_title`, `star_graphic`, `countries_count`, `cities_count`, `islands_count`, `sights_count`, `food_count`, `cafes_count`, `drinks_count`, and full `visited_places` JSONB array).
+* **Automatic Sign-Up Trigger (`on_auth_user_created`):** Automatically creates a row in `public.profiles` whenever a new user registers via **Google Sign-In** or **Email/Password**.
+* **Admin Dashboard View (`public.admin_passports_view`):** Ready-to-browse view in the Supabase Table Editor showing all registered users, their email, Traveler Rank (`⭐ Explorer` – `⭐⭐⭐⭐⭐ World Legend`), Countries/Cities/Islands & 4 activity category counters, and saved passport JSON.
+
+## 2. Google & Email Sign-In + Cloud Sync (`src/config/supabase.js`, `src/components/AuthModal.js`, `src/hooks/usePinCheckData.js`)
+* **`🔐 Sign In` / `☁️ Synced` Header Button (`ProfileHeader.js`):** Opens `AuthModal.js` with **Continue with Google** (`supabase.auth.signInWithOAuth({ provider: 'google' })`), **Email/Password Sign In & Sign Up**, and an in-app **🛡️ Admin View** tab listing registered users and their saved passports.
+* **Automatic Passport Sync (`usePinCheckData.js`):** Automatically syncs `visitedPlaces` and all passport stats to Supabase `public.profiles` whenever a signed-in user adds or edits a pin.
+
+---
+
 # Implementation Plan: Modular Architecture (`src/`)
 
 ## Target Directory Structure

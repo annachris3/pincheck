@@ -29,6 +29,8 @@ export function ProfileHeader({
   setActiveTab,
   onPickImage,
   onOpenProfileModal,
+  onOpenAuthModal,
+  authUser = null,
   onShareProfile,
   readOnly = false,
 }) {
@@ -145,6 +147,31 @@ export function ProfileHeader({
           </Text>
           <Text style={styles.homeLocation}>📍 {homeLocation}</Text>
         </TouchableOpacity>
+
+        {/* Cloud Sign-In / Account Button (Google & Email via Supabase) */}
+        {onOpenAuthModal && (
+          <TouchableOpacity
+            style={[
+              styles.cardEditPill,
+              {
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderColor: authUser ? '#34d399' : '#38bdf8',
+              },
+            ]}
+            onPress={onOpenAuthModal}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.cardEditPillText,
+                { color: authUser ? '#34d399' : '#38bdf8', fontSize: 11 },
+              ]}
+            >
+              {authUser ? '☁️ Synced' : '🔐 Sign In'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Compact Icon-Only Social Media Row (YouTube, Instagram, TikTok, Generic Link) */}

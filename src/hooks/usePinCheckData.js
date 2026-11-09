@@ -10,6 +10,12 @@ import {
   getPlaceCitiesList,
   evaluateStarRanking,
 } from '../utils/categories';
+import {
+  supabase,
+  isSupabaseConfigured,
+  syncPassportToSupabase,
+  fetchPassportFromSupabase,
+} from '../config/supabase';
 
 const CURRENT_SCHEMA_VERSION = 3;
 export const CLOUD_SYNC_TOPIC_URL = 'https://ntfy.sh/pincheckin_anna_sync_v2';
@@ -230,6 +236,77 @@ export function usePinCheckData() {
   // Visited country/city check-ins with nested cities[], beers[], and foodDrinks[]
   const [visitedPlaces, setVisitedPlaces] = useState(INITIAL_PLACES);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
+
+  // Listen to Supabase Auth state changes (Google & Email Sign-In)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    let mounted = true;
+
+    const hydrateUserFromSupabase = async (user) => {
+      if (!user) return;
+      if (Platform.OS === 'web') {
+        setIsReadOnlyViewer(false);
+      }
+      const remotePassport = await fetchPassportFromSupabase(user.id);
+      if (
+        mounted &&
+        remotePassport &&
+        Array.isArray(remotePassport.visited_places) &&
+        remotePassport.visited_places.length > 0
+      ) {
+        if (remotePassport.display_name) {
+          setDisplayName(remotePassport.display_name);
+        }
+        if (remotePassport.home_location) {
+          setHomeLocation(remotePassport.home_location);
+        }
+        if (remotePassport.profile_photo) {
+          setProfilePhoto(remotePassport.profile_photo);
+        }
+        if (remotePassport.youtube_url !== undefined) {
+          setYoutubeUrl(remotePassport.youtube_url);
+        }
+        if (remotePassport.instagram_user !== undefined) {
+          setInstagramUser(remotePassport.instagram_user);
+        }
+        if (remotePassport.tiktok_user !== undefined) {
+          setTiktokUser(remotePassport.tiktok_user);
+        }
+        if (remotePassport.custom_link_url !== undefined) {
+          setCustomLinkUrl(remotePassport.custom_link_url);
+        }
+        if (remotePassport.custom_link_label) {
+          setCustomLinkLabel(remotePassport.custom_link_label);
+        }
+        setVisitedPlaces(normalizeStoredPlaces(remotePassport.visited_places));
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      const currentUser = data?.session?.user || null;
+      if (mounted) {
+        setAuthUser(currentUser);
+        if (currentUser) hydrateUserFromSupabase(currentUser);
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const nextUser = session?.user || null;
+        if (mounted) {
+          setAuthUser(nextUser);
+          if (nextUser) hydrateUserFromSupabase(nextUser);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   // Switch a web visitor from Read-Only view of the shared map into their OWN brand-new blank PinCheck map
   const startNewUserMap = useCallback(async () => {
@@ -403,6 +480,14 @@ export function usePinCheckData() {
             visitedPlaces,
           });
         }
+
+        // If signed in with Supabase (Google or Email), sync passport & counters to Supabase `public.profiles`
+        if (authUser) {
+          await syncPassportToSupabase(authUser, {
+            ...profileData,
+            visitedPlaces,
+          });
+        }
       } catch (e) {
         console.log('Error saving profile:', e);
       }
@@ -421,6 +506,33 @@ export function usePinCheckData() {
     isStorageLoaded,
     isReadOnlyViewer,
     isGuestCreator,
+    authUser,
+  ]);
+
+  const syncCurrentPassportToSupabase = useCallback(async () => {
+    if (!authUser) return;
+    await syncPassportToSupabase(authUser, {
+      profilePhoto,
+      displayName,
+      homeLocation,
+      youtubeUrl,
+      instagramUser,
+      tiktokUser,
+      customLinkUrl,
+      customLinkLabel,
+      visitedPlaces,
+    });
+  }, [
+    authUser,
+    profilePhoto,
+    displayName,
+    homeLocation,
+    youtubeUrl,
+    instagramUser,
+    tiktokUser,
+    customLinkUrl,
+    customLinkLabel,
+    visitedPlaces,
   ]);
 
   // Automatically evaluated Star Ranking whenever destinations/pins are added, edited, or deleted
@@ -454,5 +566,7 @@ export function usePinCheckData() {
     isReadOnlyViewer,
     isGuestCreator,
     startNewUserMap,
+    authUser,
+    syncCurrentPassportToSupabase,
   };
 }
